@@ -4,6 +4,22 @@ export interface User {
     email: string
     role: string
   }
+
+  export interface Production {
+    id: string
+    product_id: string
+    quantity: number
+    production_date: string
+    created_at: string
+  }
+
+  export interface Notification {
+    id: string
+    user_id: string
+    message: string
+    read: boolean
+    created_at: string
+  }
   
   export interface Product {
     id: string
