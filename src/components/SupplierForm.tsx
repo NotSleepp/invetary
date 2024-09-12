@@ -30,15 +30,15 @@ export const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSubmit }
   return (
     <form onSubmit={handleSubmit(onSubmitForm)}>
       <Input
-        label="Name"
+        label="Nombre"
         {...register('name', { required: 'Name is required' })}
         error={errors.name?.message}
       />
       <Input
-        label="Contact Information"
+        label="Informacion de contacto"
         {...register('contact_info')}
       />
-      <Button type="submit">Save Supplier</Button>
+      <Button type="submit">Guardar Proveedor</Button>
     </form>
   )
 }

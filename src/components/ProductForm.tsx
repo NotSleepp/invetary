@@ -33,20 +33,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, categories, o
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmitForm)} className='flex flex-col justify-center mb-10'>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-          <FormField name="name" label="Name" error={methods.formState.errors.name?.message} />
-          <FormField name="description" label="Description" />
-          <FormField name="stock_quantity" label="Stock Quantity" type="number" error={methods.formState.errors.stock_quantity?.message} />
+          <FormField name="name" label="Nombre" error={methods.formState.errors.name?.message} />
+          <FormField name="description" label="Descripción" />
+          <FormField name="stock_quantity" label="Cantidad" type="number" error={methods.formState.errors.stock_quantity?.message} />
           <FormField
             name="category_id"
-            label="Category"
+            label="Categoria"
             options={categories.map(cat => ({ value: cat.id, label: cat.name }))}
             error={methods.formState.errors.category_id?.message}
           />
-          <FormField name="cost_price" label="Cost Price" type="number" step="0.01" error={methods.formState.errors.cost_price?.message} />
-          <FormField name="sale_price" label="Sale Price" type="number" step="0.01" error={methods.formState.errors.sale_price?.message} />
+          <FormField name="cost_price" label="Precio de costo" type="number" step="0.01" error={methods.formState.errors.cost_price?.message} />
+          <FormField name="sale_price" label="Precio de venta" type="number" step="0.01" error={methods.formState.errors.sale_price?.message} />
           
         </div>
-        <Button type="submit">Save Product</Button>
+        <Button type="submit">Guardar Producto</Button>
       </form>
     </FormProvider>
   );

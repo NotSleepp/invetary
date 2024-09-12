@@ -74,20 +74,20 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({ onSubmit }) => {
   return (
     <form onSubmit={handleSubmit(onSubmitForm)}>
       <Select
-        label="Product"
+        label="Producto"
         options={products.map(product => ({ value: product.id, label: product.name }))}
         {...register('product_id', { required: 'Product is required' })}
         error={errors.product_id?.message}
       />
       <Input
-        label="Quantity Produced"
+        label="Cantidad"
         type="number"
         {...register('quantity_produced', { required: 'Quantity is required', min: 1 })}
         error={errors.quantity_produced?.message}
       />
       {selectedProductId && quantityProduced && (
         <div className="mt-4">
-          <h3 className="font-bold">Materials Needed:</h3>
+          <h3 className="font-bold">Materiales Necesarios:</h3>
           <ul>
             {recipes
               .filter(recipe => recipe.product_id === selectedProductId)
@@ -103,7 +103,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({ onSubmit }) => {
           </ul>
         </div>
       )}
-      <Button type="submit">Save Production Log</Button>
+      <Button type="submit">Guardar</Button>
     </form>
   )
 }

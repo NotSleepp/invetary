@@ -112,7 +112,7 @@ export default function MaterialsPage() {
   return (
     <AuthGuard>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Materials</h1>
+        <h1 className="text-3xl font-bold mb-6">Materiales</h1>
         <MaterialForm
           material={editingMaterial || undefined}
           categories={categories}

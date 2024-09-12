@@ -29,9 +29,9 @@ export const CategoryList: React.FC<CategoryListProps> = ({ categories, onEdit, 
     <table className="min-w-full bg-white">
       <thead>
         <tr>
-          <th className="py-2 px-4 border-b">Name</th>
-          <th className="py-2 px-4 border-b">Description</th>
-          <th className="py-2 px-4 border-b">Actions</th>
+          <th className="py-2 px-4 border-b">Nombre</th>
+          <th className="py-2 px-4 border-b">Descripción</th>
+          <th className="py-2 px-4 border-b"></th>
         </tr>
       </thead>
       <tbody>
@@ -40,8 +40,8 @@ export const CategoryList: React.FC<CategoryListProps> = ({ categories, onEdit, 
             <td className="py-2 px-4 border-b">{category.name}</td>
             <td className="py-2 px-4 border-b">{category.description}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(category)} variant="secondary" className="mr-2">Edit</Button>
-              <Button onClick={() => handleDelete(category.id)} variant="danger">Delete</Button>
+              <Button onClick={() => onEdit(category)} variant="secondary" className="mr-2">Editar</Button>
+              <Button onClick={() => handleDelete(category.id)} variant="danger">Eliminar</Button>
             </td>
           </tr>
         ))}

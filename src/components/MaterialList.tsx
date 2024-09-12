@@ -29,11 +29,11 @@ export const MaterialList: React.FC<MaterialListProps> = ({ materials, onEdit, o
     <table className="min-w-full bg-white">
       <thead>
         <tr>
-          <th className="py-2 px-4 border-b">Name</th>
-          <th className="py-2 px-4 border-b">Stock Quantity</th>
-          <th className="py-2 px-4 border-b">Cost per Unit</th>
-          <th className="py-2 px-4 border-b">Supplier</th>
-          <th className="py-2 px-4 border-b">Actions</th>
+          <th className="py-2 px-4 border-b">Nombre</th>
+          <th className="py-2 px-4 border-b">Stock</th>
+          <th className="py-2 px-4 border-b">Costo por unidad</th>
+          <th className="py-2 px-4 border-b">Proveedor</th>
+          <th className="py-2 px-4 border-b"></th>
         </tr>
       </thead>
       <tbody>
@@ -44,8 +44,8 @@ export const MaterialList: React.FC<MaterialListProps> = ({ materials, onEdit, o
             <td className="py-2 px-4 border-b">${material.cost_per_unit.toFixed(2)}</td>
             <td className="py-2 px-4 border-b">{material.supplier_id}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(material)} variant="secondary">Edit</Button>
-              <Button onClick={() => handleDelete(material.id)} variant="danger">Delete</Button>
+              <Button onClick={() => onEdit(material)} variant="secondary">Editar</Button>
+              <Button onClick={() => handleDelete(material.id)} variant="danger">Eliminar</Button>
             </td>
           </tr>
         ))}

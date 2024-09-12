@@ -62,7 +62,7 @@ export default function SuppliersPage() {
   return (
     <AuthGuard>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Suppliers</h1>
+        <h1 className="text-3xl font-bold mb-6">Proveedores</h1>
         <SupplierForm
           supplier={editingSupplier || undefined}
           onSubmit={handleSubmit}

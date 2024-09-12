@@ -29,9 +29,9 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, o
     <table className="min-w-full bg-white">
       <thead>
         <tr>
-          <th className="py-2 px-4 border-b">Name</th>
-          <th className="py-2 px-4 border-b">Contact Information</th>
-          <th className="py-2 px-4 border-b">Actions</th>
+          <th className="py-2 px-4 border-b">Nombre</th>
+          <th className="py-2 px-4 border-b">Información de contacto</th>
+          <th className="py-2 px-4 border-b"></th>
         </tr>
       </thead>
       <tbody>
@@ -40,8 +40,8 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, o
             <td className="py-2 px-4 border-b">{supplier.name}</td>
             <td className="py-2 px-4 border-b">{supplier.contact_info}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(supplier)} variant="secondary">Edit</Button>
-              <Button onClick={() => handleDelete(supplier.id)} variant="danger">Delete</Button>
+              <Button onClick={() => onEdit(supplier)} variant="secondary">Editar</Button>
+              <Button onClick={() => handleDelete(supplier.id)} variant="danger">Eliminar</Button>
             </td>
           </tr>
         ))}

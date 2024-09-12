@@ -74,7 +74,7 @@ export default function ProductsPage() {
   return (
     <AuthGuard>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Products</h1>
+        <h1 className="text-3xl font-bold mb-6">Productps</h1>
         <ProductForm
           product={editingProduct || undefined}
           categories={categories}

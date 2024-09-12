@@ -31,12 +31,12 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({ category, onSubmit }
   return (
     <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4 mb-6">
       <Input
-        label="Name"
+        label="Nombre"
         {...register('name', { required: 'Name is required' })}
         error={errors.name?.message}
       />
       <Input
-        label="Description"
+        label="Descripción"
         {...register('description')}
       />
       <Button type="submit">{category ? 'Update' : 'Create'} Category</Button>

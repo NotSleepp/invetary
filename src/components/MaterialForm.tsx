@@ -33,25 +33,25 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ material, categories
   return (
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onSubmitForm)}>
-        <FormField name="name" label="Name" error={methods.formState.errors.name?.message} />
-        <FormField name="description" label="Description" />
-        <FormField name="stock_quantity" label="Stock Quantity" type="number" error={methods.formState.errors.stock_quantity?.message} />
+        <FormField name="name" label="Nombre" error={methods.formState.errors.name?.message} />
+        <FormField name="description" label="Descripción" />
+        <FormField name="stock_quantity" label="Cantidad" type="number" error={methods.formState.errors.stock_quantity?.message} />
         <FormField
           name="category_id"
-          label="Category"
+          label="Categoria"
           options={categories.map(cat => ({ value: cat.id, label: cat.name }))}
           error={methods.formState.errors.category_id?.message}
         />
         <FormField
           name="supplier_id"
-          label="Supplier"
+          label="Proveedor"
           options={suppliers.map(supplier => ({ value: supplier.id, label: supplier.name }))}
           error={methods.formState.errors.supplier_id?.message}
         />
-        <FormField name="cost_per_unit" label="Cost per Unit" type="number" step="0.01" error={methods.formState.errors.cost_per_unit?.message} />
-        <FormField name="reorder_level" label="Reorder Level" type="number" />
-        <FormField name="reorder_quantity" label="Reorder Quantity" type="number" />
-        <Button type="submit">Save Material</Button>
+        <FormField name="cost_per_unit" label="Costo por unidad" type="number" step="0.01" error={methods.formState.errors.cost_per_unit?.message} />
+        <FormField name="reorder_level" label="Nivel de reordenamiento" type="number" />
+        <FormField name="reorder_quantity" label="Cantidad de reorden" type="number" />
+        <Button type="submit">Guardar Material</Button>
       </form>
     </FormProvider>
   );

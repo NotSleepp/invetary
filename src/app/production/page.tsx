@@ -56,18 +56,18 @@ export default function ProductionPage() {
         <div className="max-w-7xl mx-auto">
           {/* Encabezado */}
           <header className="flex justify-between items-center mb-10">
-            <h1 className="text-4xl font-extrabold text-gray-800">Production Management</h1>
+            <h1 className="text-4xl font-extrabold text-gray-800">Gestión de producción</h1>
           </header>
 
           {/* Formulario de producción */}
           <section className="bg-white shadow-md rounded-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Add New Production Log</h2>
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Agregar nuevo registro de producción</h2>
             <ProductionForm onSubmit={handleSubmit} />
           </section>
 
           {/* Lista de logs de producción */}
           <section className="bg-white shadow-md rounded-lg p-6">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Production Logs</h2>
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Registro de producción</h2>
             {productionLogs.length > 0 ? (
               <ProductionList
                 productionLogs={productionLogs}

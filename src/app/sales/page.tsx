@@ -51,7 +51,7 @@ export default function SalesPage() {
   return (
     <AuthGuard>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Sales</h1>
+        <h1 className="text-3xl font-bold mb-6">Ventas</h1>
         <SaleForm onSubmit={handleSubmit} />
         <SaleList
           sales={sales}

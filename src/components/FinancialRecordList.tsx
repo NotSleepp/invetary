@@ -29,11 +29,11 @@ export const FinancialRecordList: React.FC<FinancialRecordListProps> = ({ record
     <table className="min-w-full bg-white">
       <thead>
         <tr>
-          <th className="py-2 px-4 border-b">Type</th>
-          <th className="py-2 px-4 border-b">Amount</th>
-          <th className="py-2 px-4 border-b">Description</th>
-          <th className="py-2 px-4 border-b">Date</th>
-          <th className="py-2 px-4 border-b">Actions</th>
+          <th className="py-2 px-4 border-b">Tipo</th>
+          <th className="py-2 px-4 border-b">Cantidad</th>
+          <th className="py-2 px-4 border-b">Descripción</th>
+          <th className="py-2 px-4 border-b">Fecha</th>
+          <th className="py-2 px-4 border-b"></th>
         </tr>
       </thead>
       <tbody>
@@ -44,8 +44,8 @@ export const FinancialRecordList: React.FC<FinancialRecordListProps> = ({ record
             <td className="py-2 px-4 border-b">{record.description}</td>
             <td className="py-2 px-4 border-b">{new Date(record.created_at).toLocaleDateString()}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(record)} variant="secondary" className="mr-2">Edit</Button>
-              <Button onClick={() => handleDelete(record.id)} variant="danger">Delete</Button>
+              <Button onClick={() => onEdit(record)} variant="secondary" className="mr-2">Editar</Button>
+              <Button onClick={() => handleDelete(record.id)} variant="danger">Eliminar</Button>
             </td>
           </tr>
         ))}

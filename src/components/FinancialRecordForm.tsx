@@ -32,27 +32,27 @@ export const FinancialRecordForm: React.FC<FinancialRecordFormProps> = ({ record
   return (
     <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4 mb-6">
       <Select
-        label="Type"
+        label="Tipo"
         options={[
-          { value: 'income', label: 'Income' },
-          { value: 'expense', label: 'Expense' },
+          { value: 'income', label: 'Ingreso' },
+          { value: 'expense', label: 'Gastos' },
         ]}
         {...register('type', { required: 'Type is required' })}
         error={errors.type?.message}
       />
       <Input
-        label="Amount"
+        label="Cantidad"
         type="number"
         step="0.01"
         {...register('amount', { required: 'Amount is required', min: 0 })}
         error={errors.amount?.message}
       />
       <Input
-        label="Description"
+        label="Descripción"
         {...register('description')}
         error={errors.description?.message}
       />
-      <Button type="submit">{record ? 'Update' : 'Create'} Financial Record</Button>
+      <Button type="submit">{record ? 'Actualizar' : 'Guardar'} Registro financiero</Button>
     </form>
   )
 }

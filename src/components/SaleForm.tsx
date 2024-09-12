@@ -57,32 +57,32 @@ export const SaleForm: React.FC<SaleFormProps> = ({ onSubmit }) => {
   return (
     <form onSubmit={handleSubmit(onSubmitForm)}>
       <Select
-        label="Product"
+        label="Producto"
         options={products.map(product => ({ value: product.id, label: product.name }))}
         {...register('product_id', { required: 'Product is required' })}
         error={errors.product_id?.message}
       />
       <Input
-        label="Quantity Sold"
+        label="Cantidad vendida"
         type="number"
         {...register('quantity_sold', { required: 'Quantity is required', min: 1 })}
         error={errors.quantity_sold?.message}
       />
       <Input
-        label="Sale Price"
+        label="Precio de venta"
         type="number"
         step="0.01"
         {...register('sale_price', { required: 'Sale price is required', min: 0 })}
         error={errors.sale_price?.message}
       />
       <Input
-        label="Total Revenue"
+        label="Ingresos totales"
         type="number"
         step="0.01"
         {...register('total_revenue', { required: 'Total revenue is required', min: 0 })}
         error={errors.total_revenue?.message}
       />
-      <Button type="submit">Record Sale</Button>
+      <Button type="submit">Guardar Venta</Button>
     </form>
   )
 }

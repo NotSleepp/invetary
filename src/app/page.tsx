@@ -3,10 +3,8 @@ import { AuthGuard } from '@/components/AuthGuard'
 import { Card } from '@/components/ui/Card'
 import { supabase } from '@/lib/supabase'
 import { useState, useEffect } from 'react'
-import { FaBox, FaCubes, FaDollarSign, FaExclamationTriangle, FaChartLine, FaClipboardList } from 'react-icons/fa'
+import { FaBox, FaCubes, FaDollarSign, FaExclamationTriangle, FaClipboardList } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Button } from '@/components/ui/Button'
-import Link from 'next/link'
 
 async function fetchDashboardData() {
   const { data: products } = await supabase.from('products').select('*')
@@ -20,7 +18,6 @@ async function fetchDashboardData() {
   const lowStockItems = products?.filter(product => product.stock_quantity < 10).length || 0
   const totalProduction = productionLogs?.reduce((acc, log) => acc + log.quantity_produced, 0) || 0
 
-  // Prepare sales data for chart
   const salesData = sales?.reduce((acc, sale) => {
     const date = new Date(sale.created_at).toLocaleDateString()
     acc[date] = (acc[date] || 0) + sale.total_revenue
@@ -50,83 +47,49 @@ export default function Dashboard() {
       const data = await fetchDashboardData()
       setStats(data)
     }
-    
     loadData()
   }, [])
 
   return (
     <AuthGuard>
-      <div className="p-6 bg-gray-100 min-h-screen">
-        <h1 className="text-4xl font-extrabold text-gray-800 mb-8">Dashboard</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-          <Card className="hover:shadow-xl transition-shadow duration-300 bg-white">
-            <div className="flex items-center p-6">
-              <FaBox className="text-4xl text-blue-500 mr-4" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-700">Total Products</h2>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalProducts}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="hover:shadow-xl transition-shadow duration-300 bg-white">
-            <div className="flex items-center p-6">
-              <FaCubes className="text-4xl text-green-500 mr-4" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-700">Total Materials</h2>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalMaterials}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="hover:shadow-xl transition-shadow duration-300 bg-white">
-            <div className="flex items-center p-6">
-              <FaDollarSign className="text-4xl text-yellow-500 mr-4" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-700">Total Sales</h2>
-                <p className="text-3xl font-bold text-gray-900">${stats.totalSales.toFixed(2)}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="hover:shadow-xl transition-shadow duration-300 bg-white">
-            <div className="flex items-center p-6">
-              <FaExclamationTriangle className="text-4xl text-red-500 mr-4" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-700">Low Stock Items</h2>
-                <p className="text-3xl font-bold text-gray-900">{stats.lowStockItems}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="hover:shadow-xl transition-shadow duration-300 bg-white">
-            <div className="flex items-center p-6">
-              <FaClipboardList className="text-4xl text-purple-500 mr-4" />
-              <div>
-                <h2 className="text-lg font-semibold text-gray-700">Total Production</h2>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalProduction}</p>
-              </div>
-            </div>
-          </Card>
+      <div className="space-y-8">
+        <h1 className="text-4xl font-extrabold text-gray-800">Dashboard</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <StatCard icon={FaBox} title="Total Productos" value={stats.totalProducts} color="blue" />
+          <StatCard icon={FaCubes} title="Total Materiales" value={stats.totalMaterials} color="green" />
+          <StatCard icon={FaDollarSign} title="Total Ventas" value={`$${stats.totalSales.toFixed(2)}`} color="yellow" />
+          <StatCard icon={FaExclamationTriangle} title="Productos con Bajo Stock" value={stats.lowStockItems} color="red" />
+          <StatCard icon={FaClipboardList} title="Total Producción" value={stats.totalProduction} color="purple" />
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
-          <Card className="bg-white p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Sales Trend (Last 7 Days)</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={stats.chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="sales" stroke="#8884d8" activeDot={{ r: 8 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-        </div>
-        
-        <Card className="bg-white p-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Recent Activities</h2>
-          {/* Add a list or table of recent activities here */}
+        <Card className="p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Tendencia de Ventas (Últimos 7 Días)</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={stats.chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="sales" stroke="#8884d8" activeDot={{ r: 8 }} />
+            </LineChart>
+          </ResponsiveContainer>
         </Card>
       </div>
     </AuthGuard>
+  )
+}
+
+function StatCard({ icon: Icon, title, value, color }) {
+  return (
+    <Card className="p-6 flex items-center space-x-4">
+      <div className={`p-3 rounded-full bg-${color}-100 text-${color}-500`}>
+        <Icon className="w-8 h-8" />
+      </div>
+      <div>
+        <h2 className="text-lg font-semibold text-gray-700">{title}</h2>
+        <p className="text-3xl font-bold text-gray-900">{value}</p>
+      </div>
+    </Card>
   )
 }

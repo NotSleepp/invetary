@@ -41,11 +41,11 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, products, mater
     <table className="min-w-full bg-white">
       <thead>
         <tr>
-          <th className="py-2 px-4 border-b">Product</th>
+          <th className="py-2 px-4 border-b">Producto</th>
           <th className="py-2 px-4 border-b">Material</th>
-          <th className="py-2 px-4 border-b">Quantity per Product</th>
-          <th className="py-2 px-4 border-b">Production Cost</th>
-          <th className="py-2 px-4 border-b">Actions</th>
+          <th className="py-2 px-4 border-b">Cantidad por Producto</th>
+          <th className="py-2 px-4 border-b">Costo de producción</th>
+          <th className="py-2 px-4 border-b"></th>
         </tr>
       </thead>
       <tbody>
@@ -56,8 +56,8 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, products, mater
             <td className="py-2 px-4 border-b">{recipe.quantity_per_product}</td>
             <td className="py-2 px-4 border-b">${recipe.production_cost?.toFixed(2) || 'N/A'}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(recipe)} variant="secondary" className="mr-2">Edit</Button>
-              <Button onClick={() => handleDelete(recipe.id)} variant="danger">Delete</Button>
+              <Button onClick={() => onEdit(recipe)} variant="secondary" className="mr-2">Editar</Button>
+              <Button onClick={() => handleDelete(recipe.id)} variant="danger">Eliminar</Button>
             </td>
           </tr>
         ))}

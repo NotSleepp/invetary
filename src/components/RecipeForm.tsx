@@ -34,7 +34,7 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, products, materi
   return (
     <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4 mb-6">
       <Select
-        label="Product"
+        label="Producto"
         options={products.map(product => ({ value: product.id, label: product.name }))}
         {...register('product_id', { required: 'Product is required' })}
         error={errors.product_id?.message}
@@ -46,20 +46,20 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({ recipe, products, materi
         error={errors.material_id?.message}
       />
       <Input
-        label="Quantity per Product"
+        label="Cantidad"
         type="number"
         step="0.01"
         {...register('quantity_per_product', { required: 'Quantity is required', min: 0 })}
         error={errors.quantity_per_product?.message}
       />
       <Input
-        label="Production Cost"
+        label="Costo de produccion"
         type="number"
         step="0.01"
         {...register('production_cost', { min: 0 })}
         error={errors.production_cost?.message}
       />
-      <Button type="submit">{recipe ? 'Update' : 'Create'} Recipe</Button>
+      <Button type="submit">{recipe ? 'Actualizar' : 'Crear'} Receta</Button>
     </form>
   )
 }

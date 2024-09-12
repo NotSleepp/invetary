@@ -28,12 +28,12 @@ export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete }) => {
     <table className="min-w-full bg-white">
       <thead>
         <tr>
-          <th className="py-2 px-4 border-b">Product</th>
-          <th className="py-2 px-4 border-b">Quantity Sold</th>
-          <th className="py-2 px-4 border-b">Sale Price</th>
-          <th className="py-2 px-4 border-b">Total Revenue</th>
-          <th className="py-2 px-4 border-b">Date</th>
-          <th className="py-2 px-4 border-b">Actions</th>
+          <th className="py-2 px-4 border-b">Producto</th>
+          <th className="py-2 px-4 border-b">Cantidad Vendida</th>
+          <th className="py-2 px-4 border-b">Precio de venta</th>
+          <th className="py-2 px-4 border-b">Ingresos totales</th>
+          <th className="py-2 px-4 border-b">Fecha</th>
+          <th className="py-2 px-4 border-b"></th>
         </tr>
       </thead>
       <tbody>
@@ -45,7 +45,7 @@ export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete }) => {
             <td className="py-2 px-4 border-b">${sale.total_revenue.toFixed(2)}</td>
             <td className="py-2 px-4 border-b">{new Date(sale.created_at).toLocaleDateString()}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => handleDelete(sale.id)} variant="danger">Delete</Button>
+              <Button onClick={() => handleDelete(sale.id)} variant="danger">Eliminar</Button>
             </td>
           </tr>
         ))}

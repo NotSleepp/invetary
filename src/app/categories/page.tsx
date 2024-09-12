@@ -69,7 +69,7 @@ export default function CategoriesPage() {
   return (
     <AuthGuard>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Categories</h1>
+        <h1 className="text-3xl font-bold mb-6">Categorias</h1>
         <CategoryForm
           category={editingCategory || undefined}
           onSubmit={handleSubmit}

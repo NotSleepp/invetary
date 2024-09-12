@@ -69,7 +69,7 @@ export default function FinancialRecordsPage() {
   return (
     <AuthGuard>
       <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Financial Records</h1>
+        <h1 className="text-3xl font-bold mb-6">Registros financieros</h1>
         <FinancialRecordForm
           record={editingRecord || undefined}
           onSubmit={handleSubmit}
