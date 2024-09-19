@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 
 interface AuthContextType {
   user: User | null
-  role: string | null;
+  role: string | null
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   loading: boolean
@@ -16,37 +16,44 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
-  const [role, setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const session = supabase.auth.getSession();
-    setUser(session?.user ?? null);
-
-    const fetchRole = async () => {
+    const loadSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user ?? null)
+      
       if (session?.user) {
         const { data: profile } = await supabase
           .from('users')
           .select('role')
           .eq('id', session.user.id)
-          .single();
-        setRole(profile?.role ?? 'user');
+          .single()
+        setRole(profile?.role ?? 'user')
       }
-    };
+      setLoading(false)
+    }
 
-    fetchRole();
-    setLoading(false);
+    loadSession()
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) fetchRole();
-      setLoading(false);
-    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+        setRole(profile?.role ?? 'user')
+      }
+      setLoading(false)
+    })
 
     return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+      authListener.subscription.unsubscribe()
+    }
+  }, [])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -62,12 +69,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ user, role, signIn, signOut, loading }}>
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context

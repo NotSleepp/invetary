@@ -1,70 +1,95 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { FinancialRecordForm } from '@/components/FinancialRecordForm'
 import { FinancialRecordList } from '@/components/FinancialRecordList'
 import { FinancialRecord } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { Button } from '@/components/ui/Button'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import Spinner from '@/components/ui/Spinner'
+
+// Función para obtener registros financieros
+const fetchFinancialRecords = async () => {
+  const { data, error } = await supabase.from('financial_records').select('*')
+  if (error) throw new Error('Error fetching FinancialRecords')
+  return data
+}
 
 export default function FinancialRecordsPage() {
-  const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([])
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null)
   const { showToast } = useToast()
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    fetchFinancialRecords()
-  }, [])
+  // Query para obtener registros financieros
+  const { data: financialRecords, isLoading, error } = useQuery({
+    queryKey: ['financial_records'], // Clave para identificar la query
+    queryFn: fetchFinancialRecords,  // Función que ejecuta la query
+    staleTime: 1000 * 60 * 5,        // Cache válido por 5 minutos
+    cacheTime: 1000 * 60 * 10,       // Cache presente durante 10 minutos
+  })
 
-  const fetchFinancialRecords = async () => {
-    const { data, error } = await supabase.from('financial_records').select('*')
-    if (error) {
-      showToast('Error fetching financial records', 'error')
-    } else {
-      setFinancialRecords(data || [])
-    }
-  }
-
-  const handleSubmit = async (data: Partial<FinancialRecord>) => {
-    try {
+  // Mutación para agregar o actualizar un registro financiero
+  const financialRecordMutation = useMutation({
+    mutationFn: async (data: Partial<FinancialRecord>) => {
       if (editingRecord) {
         const { error } = await supabase
           .from('financial_records')
           .update(data)
           .eq('id', editingRecord.id)
         if (error) throw error
-        setEditingRecord(null)
-        showToast('Financial record updated successfully', 'success')
       } else {
         const { error } = await supabase.from('financial_records').insert(data)
         if (error) throw error
-        showToast('Financial record added successfully', 'success')
       }
-      fetchFinancialRecords()
-    } catch (error) {
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial_records'] }) // Invalidar cache para refrescar
+      showToast(editingRecord ? 'Financial record updated successfully' : 'Financial record added successfully', 'success')
+      setEditingRecord(null)
+    },
+    onError: () => {
       showToast('Error saving financial record', 'error')
     }
-  }
+  })
 
-  const handleEdit = (record: FinancialRecord) => {
-    setEditingRecord(record)
-  }
-
-  const handleDelete = async (recordId: string) => {
-    try {
+  // Mutación para eliminar un registro financiero
+  const deleteFinancialRecordMutation = useMutation({
+    mutationFn: async (recordId: string) => {
       const { error } = await supabase
         .from('financial_records')
         .delete()
         .eq('id', recordId)
       if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['financial_records'] }) // Invalidar cache para refrescar
       showToast('Financial record deleted successfully', 'success')
-      fetchFinancialRecords()
-    } catch (error) {
+    },
+    onError: () => {
       showToast('Error deleting financial record', 'error')
     }
+  })
+
+  // Manejo del envío del formulario
+  const handleSubmit = (data: Partial<FinancialRecord>) => {
+    financialRecordMutation.mutate(data)
   }
+
+  // Manejo de edición del registro
+  const handleEdit = (record: FinancialRecord) => {
+    setEditingRecord(record)
+  }
+
+  // Manejo de eliminación del registro
+  const handleDelete = (recordId: string) => {
+    deleteFinancialRecordMutation.mutate(recordId)
+  }
+
+  // Estado de carga
+  if (isLoading) return <Spinner />
+  if (error) showToast('Error fetching FinancialRecords', 'error')
 
   return (
     <AuthGuard>
@@ -75,7 +100,7 @@ export default function FinancialRecordsPage() {
           onSubmit={handleSubmit}
         />
         <FinancialRecordList
-          records={financialRecords}
+          records={financialRecords || []} // Asegurarse de que sea un array vacío si no hay datos
           onEdit={handleEdit}
           onDelete={handleDelete}
         />

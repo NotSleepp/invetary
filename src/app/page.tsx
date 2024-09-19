@@ -2,11 +2,12 @@
 import { AuthGuard } from '@/components/AuthGuard'
 import { Card } from '@/components/ui/Card'
 import { supabase } from '@/lib/supabase'
-import { useState, useEffect } from 'react'
 import { FaBox, FaCubes, FaDollarSign, FaExclamationTriangle, FaClipboardList } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { useQuery } from '@tanstack/react-query'
 
-async function fetchDashboardData() {
+// Function to fetch dashboard data
+const fetchDashboardData = async () => {
   const { data: products } = await supabase.from('products').select('*')
   const { data: materials } = await supabase.from('materials').select('*')
   const { data: sales } = await supabase.from('sales').select('*')
@@ -33,39 +34,35 @@ async function fetchDashboardData() {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    totalMaterials: 0,
-    totalSales: 0,
-    lowStockItems: 0,
-    totalProduction: 0,
-    chartData: []
-  })
+  const { data: stats, isLoading, error } = useQuery({
+    queryKey: ['dashboardData'], 
+    queryFn: fetchDashboardData}
+  )
 
-  useEffect(() => {
-    async function loadData() {
-      const data = await fetchDashboardData()
-      setStats(data)
-    }
-    loadData()
-  }, [])
+  if (isLoading) {
+    return <div className="flex justify-center items-center min-h-screen">Cargando datos...</div>
+  }
+
+  if (error) {
+    return <div className="flex justify-center items-center min-h-screen">Error al cargar los datos del dashboard</div>
+  }
 
   return (
     <AuthGuard>
       <div className="space-y-8">
         <h1 className="text-4xl font-extrabold text-gray-800">Dashboard</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <StatCard icon={FaBox} title="Total Productos" value={stats.totalProducts} color="blue" />
-          <StatCard icon={FaCubes} title="Total Materiales" value={stats.totalMaterials} color="green" />
-          <StatCard icon={FaDollarSign} title="Total Ventas" value={`$${stats.totalSales.toFixed(2)}`} color="yellow" />
-          <StatCard icon={FaExclamationTriangle} title="Productos con Bajo Stock" value={stats.lowStockItems} color="red" />
-          <StatCard icon={FaClipboardList} title="Total Producción" value={stats.totalProduction} color="purple" />
+          <StatCard icon={FaBox} title="Total Productos" value={stats?.totalProducts} color="blue" />
+          <StatCard icon={FaCubes} title="Total Materiales" value={stats?.totalMaterials} color="green" />
+          <StatCard icon={FaDollarSign} title="Total Ventas" value={`$${stats?.totalSales?.toFixed(2)}`} color="yellow" />
+          <StatCard icon={FaExclamationTriangle} title="Productos con Bajo Stock" value={stats?.lowStockItems} color="red" />
+          <StatCard icon={FaClipboardList} title="Total Producción" value={stats?.totalProduction} color="purple" />
         </div>
-        
+
         <Card className="p-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Tendencia de Ventas (Últimos 7 Días)</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={stats.chartData}>
+            <LineChart data={stats?.chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
