@@ -74,14 +74,18 @@ export interface User {
   }
   
   export interface Sale {
-    id: string
-    user_id: string
-    product_id: string
-    quantity_sold: number
-    sale_price: number
-    total_revenue: number
-    created_at: string
+    id: string;
+    date: string;
+    amount: number;
+    product_name: string;
+    user_id?: string;
+    product_id?: string;
+    quantity_sold?: number;
+    sale_price?: number;
+    total_revenue?: number; // Marcar como opcional
+    created_at?: string;    // Marcar como opcional
   }
+  
   
   export interface Category {
     id: string
@@ -94,7 +98,11 @@ export interface User {
     name: string
     contact_info?: string
     created_at: string
+    email?: string;
+    phone?: string;
   }
+
+  export type PartialSupplier = Partial<Supplier> & Pick<Supplier, 'id'>;
   
   export interface PriceHistory {
     id: string

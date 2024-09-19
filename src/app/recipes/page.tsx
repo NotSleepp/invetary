@@ -1,17 +1,35 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { RecipeForm } from '@/components/RecipeForm'
 import { RecipeCard } from '@/components/RecipeCard'
-import { Recipe, Product, Material } from '@/types'
+import { Recipe as ImportedRecipe, Product as ImportedProduct, Material as ImportedMaterial } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { Card } from '@/components/ui/Card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/Button'
 import { RecipeList } from '@/components/RecipeList'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import Spinner from '@/components/ui/Spinner'
+import ErrorMessage from '@/components/ui/ErrorMessage'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+
+// Extiende los tipos importados si es necesario
+interface Recipe extends ImportedRecipe {
+  products: { id: string; name: string }[];
+  materials: { id: string; name: string }[];
+}
+
+interface Product extends Omit<ImportedProduct, 'sale_price' | 'created_at'> {
+  sale_price?: number;
+  created_at?: string;
+}
+
+interface Material extends Omit<ImportedMaterial, 'supplier_id' | 'created_at'> {
+  supplier_id?: string;
+  created_at?: string;
+}
 
 interface GroupedRecipe {
   productId: string;
@@ -19,9 +37,13 @@ interface GroupedRecipe {
   recipes: Recipe[];
 }
 
-// Función para obtener recetas
-const fetchRecipes = async () => {
-  const { data, error } = await supabase
+const ITEMS_PER_PAGE = 20
+
+// Función para obtener recetas paginadas
+const fetchRecipes = async ({ pageParam = 0 }): Promise<{ data: Recipe[], nextPage: number | undefined, count: number }> => {
+  const from = pageParam * ITEMS_PER_PAGE
+  const to = from + ITEMS_PER_PAGE - 1
+  const { data, error, count } = await supabase
     .from('recipes')
     .select(`
       id,
@@ -29,24 +51,30 @@ const fetchRecipes = async () => {
       material_id,
       quantity_per_product,
       production_cost,
-      materials (id, name)
-    `)
+      materials (id, name),
+      products (id, name)
+    `, { count: 'exact' })
+    .range(from, to)
+    .order('id', { ascending: false })
   if (error) throw new Error('Error al obtener recetas')
-  return data
+  return { 
+    data, 
+    nextPage: to < (count || 0) ? pageParam + 1 : undefined, 
+    count: count || 0  // Aseguramos que count sea un número
+  }
 }
 
-// Función para obtener productos
-const fetchProducts = async () => {
-  const { data, error } = await supabase.from('products').select('id, name')
+// Actualiza las funciones de obtención
+const fetchProducts = async (): Promise<Product[]> => {
+  const { data, error } = await supabase.from('products').select('id, name, user_id, stock_quantity, category_id, cost_price')
   if (error) throw new Error('Error al obtener productos')
-  return data
+  return data as Product[]
 }
 
-// Función para obtener materiales
-const fetchMaterials = async () => {
-  const { data, error } = await supabase.from('materials').select('id, name')
+const fetchMaterials = async (): Promise<Material[]> => {
+  const { data, error } = await supabase.from('materials').select('id, name, user_id, stock_quantity, cost_per_unit, category_id')
   if (error) throw new Error('Error al obtener materiales')
-  return data
+  return data as Material[]
 }
 
 export default function RecipesPage() {
@@ -55,14 +83,25 @@ export default function RecipesPage() {
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<GroupedRecipe | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null)
 
-  // Queries para obtener recetas, productos y materiales
-  const { data: recipes, isLoading: loadingRecipes, error: errorRecipes } = useQuery({
+  // Query infinita para obtener recetas
+  const {
+    data: recipesData,
+    fetchNextPage,
+    hasNextPage,
+    isLoading: loadingRecipes,
+    error: errorRecipes,
+    refetch: refetchRecipes
+  } = useInfiniteQuery({
     queryKey: ['recipes'],
     queryFn: fetchRecipes,
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 1000 * 60 * 5,
   })
 
+  // Queries para obtener productos y materiales
   const { data: products, isLoading: loadingProducts, error: errorProducts } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts,
@@ -90,14 +129,12 @@ export default function RecipesPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['recipes']
-      });
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
       setEditingRecipe(null)
       showToast('Receta guardada con éxito', 'success')
     },
-    onError: () => {
-      showToast('Error al guardar la receta', 'error')
+    onError: (error: Error) => {
+      showToast(`Error al guardar la receta: ${error.message}`, 'error')
     },
   })
 
@@ -111,41 +148,48 @@ export default function RecipesPage() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['recipes']
-      });
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
       showToast('Receta eliminada con éxito', 'success')
       setSelectedProduct(null)
       setIsModalOpen(false)
+      setDeletingRecipeId(null)
     },
-    onError: () => {
-      showToast('Error al eliminar la receta', 'error')
+    onError: (error: Error) => {
+      showToast(`Error al eliminar la receta: ${error.message}`, 'error')
     },
   })
 
-  const handleSubmit = (data: Partial<Recipe>) => {
+  const handleSubmit = useCallback((data: Partial<Recipe>) => {
     saveRecipeMutation.mutate(data)
-  }
+  }, [saveRecipeMutation])
 
-  const handleEdit = (recipe: Recipe) => {
-    setEditingRecipe(recipe)
+  const handleEdit = useCallback((recipe: ImportedRecipe) => {
+    setEditingRecipe(recipe as Recipe)
     setSelectedProduct(null)
     setIsModalOpen(false)
-  }
+  }, [])
 
-  const handleDelete = (recipeId: string) => {
-    deleteRecipeMutation.mutate(recipeId)
-  }
+  const handleDelete = useCallback((recipeId: string) => {
+    setDeletingRecipeId(recipeId)
+  }, [])
 
-  const handleCardClick = (groupedRecipe: GroupedRecipe) => {
+  const confirmDelete = useCallback(() => {
+    if (deletingRecipeId) {
+      deleteRecipeMutation.mutate(deletingRecipeId)
+    }
+  }, [deletingRecipeId, deleteRecipeMutation])
+
+  const handleCardClick = useCallback((groupedRecipe: GroupedRecipe) => {
     setSelectedProduct(groupedRecipe)
     setIsModalOpen(true)
-  }
+  }, [])
 
   // Agrupación de recetas por productos
-  const groupRecipesByProduct = () => {
-    const grouped = recipes?.reduce((acc, recipe) => {
-      const product = products?.find(p => p.id === recipe.product_id)
+  const groupedRecipes = useMemo(() => {
+    if (!recipesData) return []
+    const allRecipes = recipesData.pages.flatMap(page => page.data)
+    return allRecipes.reduce((acc, recipe) => {
+      const product = recipe.products && recipe.products[0]
       if (product) {
         const existingGroup = acc.find(g => g.productId === product.id)
         if (existingGroup) {
@@ -160,17 +204,18 @@ export default function RecipesPage() {
       }
       return acc
     }, [] as GroupedRecipe[])
-    return grouped || []
-  }
+  }, [recipesData])
 
   // Cargando o manejando errores
   if (loadingRecipes || loadingProducts || loadingMaterials) return <Spinner />
   if (errorRecipes || errorProducts || errorMaterials) {
-    showToast('Error al cargar los datos', 'error')
-    return null
+    return (
+      <div>
+        <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo." />
+        <Button onClick={() => refetchRecipes()}>Reintentar</Button>
+      </div>
+    )
   }
-
-  const groupedRecipes = groupRecipesByProduct()
 
   return (
     <AuthGuard>
@@ -181,20 +226,25 @@ export default function RecipesPage() {
             <h2 className="text-2xl font-bold mb-4">{editingRecipe ? 'Editar Receta' : 'Añadir Nueva Receta'}</h2>
             <RecipeForm
               recipe={editingRecipe || undefined}
-              products={products || []}
-              materials={materials || []}
+              products={products as ImportedProduct[] || []}
+              materials={materials as ImportedMaterial[] || []}
               onSubmit={handleSubmit}
             />
           </Card>
           <Card className="p-6">
             <h2 className="text-2xl font-bold mb-4">Lista de Recetas</h2>
             <RecipeList
-              recipes={recipes || []}
-              products={products || []}
-              materials={materials || []}
+              recipes={recipesData?.pages.flatMap(page => page.data) || []}
+              products={products as ImportedProduct[] || []}
+              materials={materials as ImportedMaterial[] || []}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
+            {hasNextPage && (
+              <Button onClick={() => fetchNextPage()} className="mt-4">
+                Cargar más recetas
+              </Button>
+            )}
           </Card>
         </div>
         <div className="mt-8">
@@ -221,18 +271,26 @@ export default function RecipesPage() {
             <h3 className="font-semibold mt-4 mb-2">Recetas:</h3>
             {selectedProduct?.recipes.map((recipe) => (
               <div key={recipe.id} className="mb-4 pb-4 border-b last:border-b-0">
-                <h4 className="font-medium">{recipe.name}</h4>
-                <p><strong>Material:</strong> {recipe.materials?.name}</p>
+                <h4 className="font-medium">{recipe.products[0]?.name}</h4>
+                <p><strong>Material:</strong> {recipe.materials[0]?.name}</p>
                 <p><strong>Cantidad por producto:</strong> {recipe.quantity_per_product}</p>
                 <div className="flex justify-end space-x-2 mt-2">
-                  <Button variant="outline" onClick={() => handleEdit(recipe)}>Editar</Button>
-                  <Button variant="destructive" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
+                  <Button variant="secondary" onClick={() => handleEdit(recipe)}>Editar</Button>
+                  <Button variant="danger" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
                 </div>
               </div>
             ))}
           </DialogDescription>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={!!deletingRecipeId}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingRecipeId(null)}
+        title="Confirmar eliminación"
+        message="¿Está seguro de que desea eliminar esta receta? Esta acción no se puede deshacer."
+      />
     </AuthGuard>
   )
 }

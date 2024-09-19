@@ -8,9 +8,13 @@ import { useToast } from '@/contexts/ToastContext'
 interface SaleListProps {
   sales: Sale[]
   onDelete: (saleId: string) => void
+  isLoading: boolean
+  totalCount: number
+  page: number
+  onPageChange: (newPage: number) => void
 }
 
-export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete }) => {
+export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete, isLoading, totalCount, page, onPageChange }) => {
   const { showToast } = useToast()
 
   const handleDelete = async (saleId: string) => {
@@ -41,9 +45,9 @@ export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete }) => {
           <tr key={sale.id}>
             <td className="py-2 px-4 border-b">{sale.product_id}</td>
             <td className="py-2 px-4 border-b">{sale.quantity_sold}</td>
-            <td className="py-2 px-4 border-b">${sale.sale_price.toFixed(2)}</td>
-            <td className="py-2 px-4 border-b">${sale.total_revenue.toFixed(2)}</td>
-            <td className="py-2 px-4 border-b">{new Date(sale.created_at).toLocaleDateString()}</td>
+            <td className="py-2 px-4 border-b">${sale.sale_price?.toFixed(2) ?? '0.00'}</td>
+            <td className="py-2 px-4 border-b">${sale.total_revenue?.toFixed(2) ?? '0.00'}</td>
+            <td className="py-2 px-4 border-b">{new Date(sale.created_at ?? new Date()).toLocaleDateString()}</td>
             <td className="py-2 px-4 border-b">
               <Button onClick={() => handleDelete(sale.id)} variant="danger">Eliminar</Button>
             </td>

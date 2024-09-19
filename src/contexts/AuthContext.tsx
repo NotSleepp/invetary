@@ -1,36 +1,81 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { User } from '@/types'
+import { User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { User } from '@/types' // Ajusta la ruta según donde esté definido User
 
 interface AuthContextType {
-  user: User | null
+  user: SupabaseUser | null
   role: string | null
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   loading: boolean
+  updateUserContext: (user: SupabaseUser) => void
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  role: null,
+  signIn: async () => {},
+  signOut: async () => {},
+  loading: true,
+  updateUserContext: () => {},
+})
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        console.error('Error loading session:', sessionError)
+        setLoading(false)
+        return
+      }
+
       setUser(session?.user ?? null)
-      
+
       if (session?.user) {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('users')
-          .select('role')
-          .eq('id', session.user.id)
+          .select('role, username')
+          .eq('auth_id', session.user.id)
           .single()
-        setRole(profile?.role ?? 'user')
+
+        if (error) {
+          if (error.code === 'PGRST116' || error.message.includes('No rows')) {
+            // Usuario no encontrado, vamos a crearlo
+            const username = session.user.email?.split('@')[0] || 'user' + Math.random().toString(36).substr(2, 9)
+            const { data: newProfile, error: insertError } = await supabase
+              .from('users')
+              .insert({
+                auth_id: session.user.id,
+                role: 'user',
+                username: username,
+                email: session.user.email,
+                password_hash: 'NO_PASSWORD' // Añadimos un valor por defecto
+              })
+              .select()
+
+            if (insertError) {
+              console.error('Error creating user profile:', insertError)
+              setRole('user')
+            } else if (newProfile && newProfile.length > 0) {
+              setRole(newProfile[0].role)
+            } else {
+              setRole('user')
+            }
+          } else {
+            console.error('Error fetching user profile:', error)
+            setRole('user')
+          }
+        } else {
+          setRole(profile.role)
+        }
       }
       setLoading(false)
     }
@@ -40,12 +85,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
       if (session?.user) {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('users')
           .select('role')
-          .eq('id', session.user.id)
+          .eq('auth_id', session.user.id)
           .single()
-        setRole(profile?.role ?? 'user')
+
+        if (error) {
+          console.error('Error fetching user profile:', error)
+          setRole('user')
+        } else {
+          setRole(profile.role)
+        }
+      } else {
+        setRole(null)
       }
       setLoading(false)
     })
@@ -65,8 +118,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error
   }
 
+  const updateUserContext = (user: SupabaseUser) => {
+    setUser(user)
+    // Actualiza el rol si es necesario
+  }
+
   return (
-    <AuthContext.Provider value={{ user, role, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, role, signIn, signOut, loading, updateUserContext }}>
       {children}
     </AuthContext.Provider>
   )

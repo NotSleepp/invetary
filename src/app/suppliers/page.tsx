@@ -1,43 +1,61 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { SupplierForm } from '@/components/SupplierForm'
 import { SupplierList } from '@/components/SupplierList'
 import { Supplier } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, UseQueryResult } from '@tanstack/react-query'
 
-// Función para obtener proveedores
-const fetchSuppliers = async () => {
-  const { data, error } = await supabase.from('suppliers').select('*')
-  if (error) throw new Error('Error fetching suppliers')
-  return data || []
+// Definimos un tipo que incluye todas las propiedades que estamos usando
+type SupplierWithEmailAndPhone = Supplier & {
+  email?: string;
+  phone?: string;
 }
 
-// Función para crear un proveedor
-const createSupplier = async (supplier: Partial<Supplier>) => {
-  const { error } = await supabase.from('suppliers').insert(supplier)
-  if (error) throw new Error('Error creating supplier')
+// Definimos nuestro tipo parcial basado en las propiedades que realmente estamos usando
+type PartialSupplier = {
+  id: string;
+  name?: string;
 }
 
-// Función para actualizar un proveedor
-const updateSupplier = async (supplier: Supplier) => {
-  const { error } = await supabase
+// Constantes para las claves de consulta
+const SUPPLIERS_QUERY_KEY = 'suppliers'
+
+// Funciones de base de datos optimizadas
+const fetchSuppliers = async (): Promise<PartialSupplier[]> => {
+  const { data, error } = await supabase
+    .from('suppliers')
+    .select('id, name')
+    .order('name', { ascending: true })
+  if (error) throw new Error('Error al obtener proveedores')
+  return data as PartialSupplier[]
+}
+
+const createSupplier = async (supplier: Partial<PartialSupplier>): Promise<PartialSupplier> => {
+  const { data, error } = await supabase.from('suppliers').insert(supplier).select()
+  if (error) throw new Error('Error al crear proveedor')
+  return data[0] as PartialSupplier
+}
+
+const updateSupplier = async (supplier: Partial<PartialSupplier>): Promise<PartialSupplier> => {
+  const { data, error } = await supabase
     .from('suppliers')
     .update(supplier)
     .eq('id', supplier.id)
-  if (error) throw new Error('Error updating supplier')
+    .select()
+  if (error) throw new Error('Error al actualizar proveedor')
+  return data[0] as PartialSupplier
 }
 
-// Función para eliminar un proveedor
 const deleteSupplier = async (supplierId: string) => {
   const { error } = await supabase
     .from('suppliers')
     .delete()
     .eq('id', supplierId)
-  if (error) throw new Error('Error deleting supplier')
+  if (error) throw new Error('Error al eliminar proveedor')
 }
 
 export default function SuppliersPage() {
@@ -45,65 +63,82 @@ export default function SuppliersPage() {
   const { showToast } = useToast()
   const queryClient = useQueryClient()
 
-  // Consultar proveedores
-  const { data: suppliers, refetch } = useQuery({
-    queryKey: ['suppliers'],
+  // Consulta de proveedores optimizada
+  const { data: suppliers = [], isLoading, error }: UseQueryResult<PartialSupplier[], Error> = useQuery({
+    queryKey: [SUPPLIERS_QUERY_KEY],
     queryFn: fetchSuppliers,
-    onError: () => {
-      showToast('Error fetching suppliers', 'error')
-    },
+    staleTime: 5 * 60 * 1000, // 5 minutos
   })
 
-  // Mutaciones
-  const createMutation = useMutation({
+  // Manejar el error fuera de useQuery
+  useEffect(() => {
+    if (error) {
+      showToast('Error al obtener proveedores', 'error')
+    }
+  }, [error, showToast])
+
+  // Mutaciones optimizadas
+  const createMutation = useMutation<PartialSupplier, Error, Partial<PartialSupplier>>({
     mutationFn: createSupplier,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['suppliers'])
-      showToast('Supplier created successfully', 'success')
+    onSuccess: (newSupplier) => {
+      queryClient.setQueryData<PartialSupplier[]>([SUPPLIERS_QUERY_KEY], (old = []) => [
+        ...old,
+        {
+          id: newSupplier.id,
+          name: newSupplier.name,
+        },
+      ])
+      showToast('Proveedor creado exitosamente', 'success')
     },
-    onError: () => {
-      showToast('Error creating supplier', 'error')
-    }
+    onError: () => showToast('Error al crear proveedor', 'error'),
   })
 
-  const updateMutation = useMutation({
+  const updateMutation = useMutation<PartialSupplier, Error, Partial<PartialSupplier>>({
     mutationFn: updateSupplier,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['suppliers'])
+    onSuccess: (updatedSupplier) => {
+      queryClient.setQueryData<PartialSupplier[]>([SUPPLIERS_QUERY_KEY], (old = []) =>
+        old.map((s) =>
+          s.id === updatedSupplier.id
+            ? {
+              id: updatedSupplier.id,
+              name: updatedSupplier.name,
+            }
+            : s
+        )
+      )
       setEditingSupplier(null)
-      showToast('Supplier updated successfully', 'success')
+      showToast('Proveedor actualizado exitosamente', 'success')
     },
-    onError: () => {
-      showToast('Error updating supplier', 'error')
-    }
+    onError: () => showToast('Error al actualizar proveedor', 'error'),
   })
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useMutation<void, Error, string>({
     mutationFn: deleteSupplier,
-    onSuccess: () => {
-      queryClient.invalidateQueries(['suppliers'])
-      showToast('Supplier deleted successfully', 'success')
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueryData<Supplier[]>([SUPPLIERS_QUERY_KEY], (old = []) =>
+        old.filter((s) => s.id !== deletedId)
+      )
+      showToast('Proveedor eliminado exitosamente', 'success')
     },
-    onError: () => {
-      showToast('Error deleting supplier', 'error')
-    }
+    onError: () => showToast('Error al eliminar proveedor', 'error'),
   })
 
-  const handleSubmit = (data: Partial<Supplier>) => {
+  // Manejadores de eventos memoizados
+  const handleSubmit = useCallback((data: Partial<SupplierWithEmailAndPhone>) => {
     if (editingSupplier) {
       updateMutation.mutate({ ...editingSupplier, ...data })
     } else {
       createMutation.mutate(data)
     }
-  }
+  }, [editingSupplier, updateMutation, createMutation])
 
-  const handleEdit = (supplier: Supplier) => {
-    setEditingSupplier(supplier)
-  }
+  const handleEdit = useCallback((supplier: PartialSupplier) => {
+    setEditingSupplier(supplier as Supplier)
+  }, [])
 
-  const handleDelete = (supplierId: string) => {
+  const handleDelete = useCallback((supplierId: string) => {
     deleteMutation.mutate(supplierId)
-  }
+  }, [deleteMutation])
 
   return (
     <AuthGuard>
@@ -112,12 +147,20 @@ export default function SuppliersPage() {
         <SupplierForm
           supplier={editingSupplier || undefined}
           onSubmit={handleSubmit}
+          isLoading={createMutation.isPending || updateMutation.isPending}
         />
-        <SupplierList
-          suppliers={suppliers || []}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        {isLoading ? (
+          <p>Cargando proveedores...</p>
+        ) : error ? (
+          <p>Error al cargar proveedores</p>
+        ) : (
+          <SupplierList
+            suppliers={suppliers}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            isDeleting={deleteMutation.isPending}
+          />
+        )}
       </div>
     </AuthGuard>
   )

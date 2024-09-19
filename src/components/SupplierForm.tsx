@@ -7,10 +7,11 @@ import { Button } from './ui/Button'
 import { Supplier } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 
-interface SupplierFormProps {
-  supplier?: Supplier
-  onSubmit: (data: Partial<Supplier>) => void
-}
+type SupplierFormProps = {
+  supplier?: Supplier;
+  onSubmit: (data: Partial<Supplier>) => void;
+  isLoading: boolean;
+};
 
 export const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSubmit }) => {
   const { register, handleSubmit, formState: { errors } } = useForm<Partial<Supplier>>({

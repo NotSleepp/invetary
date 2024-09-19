@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { ProductForm } from '@/components/ProductForm'
 import { ProductList } from '@/components/ProductList'
@@ -9,18 +9,24 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Spinner from '@/components/ui/Spinner'
+import ErrorMessage from '@/components/ui/ErrorMessage'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 // Función para obtener productos
 const fetchProducts = async () => {
-  const { data, error } = await supabase.from('products').select('*')
-  if (error) throw new Error('Error fetching products')
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('name', { ascending: true })
+    .range(0, 49) // Implementación básica de paginación
+  if (error) throw new Error('Error al obtener productos')
   return data
 }
 
 // Función para obtener categorías
 const fetchCategories = async () => {
   const { data, error } = await supabase.from('categories').select('*')
-  if (error) throw new Error('Error fetching categories')
+  if (error) throw new Error('Error al obtener categorías')
   return data
 }
 
@@ -28,13 +34,14 @@ export default function ProductsPage() {
   const { showToast } = useToast()
   const queryClient = useQueryClient()
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null)
 
   // Query para obtener los productos
   const { data: products, isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ['products'],
     queryFn: fetchProducts,
     staleTime: 1000 * 60 * 5,  // Cache válido por 5 minutos
-    cacheTime: 1000 * 60 * 10, // Cache presente durante 10 minutos
+    gcTime: 1000 * 60 * 10, // Cache presente durante 10 minutos
   })
 
   // Query para obtener las categorías
@@ -42,7 +49,7 @@ export default function ProductsPage() {
     queryKey: ['categories'],
     queryFn: fetchCategories,
     staleTime: 1000 * 60 * 5,  // Cache válido por 5 minutos
-    cacheTime: 1000 * 60 * 10, // Cache presente durante 10 minutos
+    gcTime: 1000 * 60 * 10, // Cache presente durante 10 minutos
   })
 
   // Mutación para agregar o actualizar un producto
@@ -60,12 +67,12 @@ export default function ProductsPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] }) // Refrescar productos
+      queryClient.invalidateQueries({ queryKey: ['products'] })
       setEditingProduct(null)
-      showToast('Product saved successfully', 'success')
+      showToast(editingProduct ? 'Producto actualizado con éxito' : 'Producto añadido con éxito', 'success')
     },
     onError: () => {
-      showToast('Error saving product', 'error')
+      showToast('Error al guardar el producto', 'error')
     }
   })
 
@@ -79,11 +86,12 @@ export default function ProductsPage() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] }) // Refrescar productos
-      showToast('Product deleted successfully', 'success')
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      showToast('Producto eliminado con éxito', 'success')
+      setDeletingProductId(null)
     },
     onError: () => {
-      showToast('Error deleting product', 'error')
+      showToast('Error al eliminar el producto', 'error')
     }
   })
 
@@ -96,13 +104,25 @@ export default function ProductsPage() {
   }
 
   const handleDelete = (productId: string) => {
-    deleteProductMutation.mutate(productId)
+    setDeletingProductId(productId)
   }
+
+  const confirmDelete = () => {
+    if (deletingProductId) {
+      deleteProductMutation.mutate(deletingProductId)
+    }
+  }
+
+  const cancelDelete = () => {
+    setDeletingProductId(null)
+  }
+
+  const memoizedProducts = useMemo(() => products || [], [products])
+  const memoizedCategories = useMemo(() => categories || [], [categories])
 
   // Manejo de carga y errores
   if (productsLoading || categoriesLoading) return <Spinner />
-  if (productsError) showToast('Error fetching products', 'error')
-  if (categoriesError) showToast('Error fetching categories', 'error')
+  if (productsError || categoriesError) return <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo más tarde." />
 
   return (
     <AuthGuard>
@@ -110,13 +130,20 @@ export default function ProductsPage() {
         <h1 className="text-3xl font-bold mb-6">Productos</h1>
         <ProductForm
           product={editingProduct || undefined}
-          categories={categories || []}
+          categories={memoizedCategories}
           onSubmit={handleSubmit}
         />
         <ProductList
-          products={products || []}
+          products={memoizedProducts}
           onEdit={handleEdit}
           onDelete={handleDelete}
+        />
+        <ConfirmDialog
+          isOpen={!!deletingProductId}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          title="Confirmar eliminación"
+          message="¿Está seguro de que desea eliminar este producto?"
         />
       </div>
     </AuthGuard>

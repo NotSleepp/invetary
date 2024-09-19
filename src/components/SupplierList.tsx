@@ -1,26 +1,27 @@
 'use client'
 
 import React from 'react'
-import { Supplier } from '@/types'
+import { Supplier, PartialSupplier } from '@/types'
 import { Button } from './ui/Button'
 import { useToast } from '@/contexts/ToastContext'
 
 interface SupplierListProps {
-  suppliers: Supplier[]
-  onEdit: (supplier: Supplier) => void
-  onDelete: (supplierId: string) => void
+  suppliers: PartialSupplier[];
+  onEdit: (supplier: PartialSupplier) => void; // Cambiado de Supplier a PartialSupplier
+  onDelete: (supplierId: string) => void;
+  isDeleting: boolean;
 }
 
-export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, onDelete }) => {
+export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, onDelete, isDeleting }) => {
   const { showToast } = useToast()
 
   const handleDelete = async (supplierId: string) => {
-    if (window.confirm('Are you sure you want to delete this supplier?')) {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este proveedor?')) {
       try {
         await onDelete(supplierId)
-        showToast('Supplier deleted successfully', 'success')
+        showToast('Proveedor eliminado con éxito', 'success')
       } catch (error) {
-        showToast('Error deleting supplier', 'error')
+        showToast('Error al eliminar el proveedor', 'error')
       }
     }
   }
@@ -41,7 +42,7 @@ export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, o
             <td className="py-2 px-4 border-b">{supplier.contact_info}</td>
             <td className="py-2 px-4 border-b">
               <Button onClick={() => onEdit(supplier)} variant="secondary">Editar</Button>
-              <Button onClick={() => handleDelete(supplier.id)} variant="danger">Eliminar</Button>
+              <Button onClick={() => handleDelete(supplier.id)} variant="danger" disabled={isDeleting}>Eliminar</Button>
             </td>
           </tr>
         ))}

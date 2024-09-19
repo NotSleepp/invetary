@@ -1,12 +1,14 @@
 'use client'
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
+import Spinner from '@/components/ui/Spinner'
+import Link from 'next/link'
 
 interface LoginForm {
   email: string
@@ -18,6 +20,7 @@ export default function LoginPage() {
   const { signIn, user } = useAuth()
   const { showToast } = useToast()
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -26,11 +29,14 @@ export default function LoginPage() {
   }, [user, router])
 
   const onSubmit = async (data: LoginForm) => {
+    setIsLoading(true)
     try {
       await signIn(data.email, data.password)
       router.push('/')
     } catch (error) {
-      showToast('Invalid email or password', 'error')
+      showToast('Correo electrónico o contraseña inválidos', 'error')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -39,49 +45,72 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-gray-100 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-extrabold text-gray-900">Ingrese a su cuenta</h2>
-          <p className="mt-2 text-sm text-gray-600">PPor favor escriba sus datos para iniciar sesión</p>
+          <p className="mt-2 text-sm text-gray-600">Por favor escriba sus datos para iniciar sesión</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)} aria-label="Formulario de inicio de sesión">
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email" className="sr-only">Email</label>
-              <input
+              <Input
+                label="Correo electrónico"
                 id="email"
                 type="email"
                 autoComplete="email"
-                {...register('email', { required: 'Email is required' })}
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Email"
+                {...register('email', { 
+                  required: 'El correo electrónico es obligatorio',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Dirección de correo electrónico inválida"
+                  }
+                })}
+                placeholder="Correo electrónico"
+                error={errors.email?.message}
               />
-              {errors.email && <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>}
             </div>
             <div className="mt-4">
-              <label htmlFor="password" className="sr-only">Contraseña</label>
-              <input
+              <Input
+                label="Contraseña"
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                {...register('password', { required: 'Password is required' })}
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
+                {...register('password', { 
+                  required: 'La contraseña es obligatoria',
+                  minLength: {
+                    value: 8,
+                    message: 'La contraseña debe tener al menos 8 caracteres'
+                  }
+                })}
                 placeholder="Contraseña"
+                error={errors.password?.message}
               />
-              {errors.password && <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>}
             </div>
           </div>
           <div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-              Sign In
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out"
+              disabled={isLoading}
+            >
+              {isLoading ? <Spinner /> : 'Iniciar sesión'}
             </Button>
           </div>
         </form>
+        <div className="mt-6 text-center">
+          <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-600">
+            ¿No tienes una cuenta?{' '}
+            <Link href="/register" className="text-blue-600 hover:text-blue-800 transition duration-150 ease-in-out">
+              Regístrate aquí
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )
