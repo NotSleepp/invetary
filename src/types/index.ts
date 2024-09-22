@@ -57,6 +57,15 @@ export interface Recipe {
   material?: Material;
 }
 
+// Nueva interfaz para manejar múltiples materiales en el formulario
+export interface RecipeFormData {
+  product_id: string;
+  materials: {
+    material_id: string;
+    quantity_per_product: number;
+  }[];
+}
+
 export interface ProductionLog {
   id: string
   user_id: string

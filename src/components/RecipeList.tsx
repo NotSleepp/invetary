@@ -17,24 +17,29 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, products, mater
   const { showToast } = useToast()
 
   const handleDelete = async (recipeId: string) => {
-    if (window.confirm('Are you sure you want to delete this recipe?')) {
+    if (window.confirm('¿Está seguro de que desea eliminar esta receta?')) {
       try {
         await onDelete(recipeId)
-        showToast('Recipe deleted successfully', 'success')
+        showToast('Receta eliminada con éxito', 'success')
       } catch (error) {
-        showToast('Error deleting recipe', 'error')
+        showToast('Error al eliminar la receta', 'error')
       }
     }
   }
 
   const getProductName = (productId: string) => {
     const product = products.find(p => p.id === productId)
-    return product ? product.name : 'Unknown Product'
+    return product ? product.name : 'Producto Desconocido'
   }
 
   const getMaterialName = (materialId: string) => {
     const material = materials.find(m => m.id === materialId)
-    return material ? material.name : 'Unknown Material'
+    return material ? material.name : 'Material Desconocido'
+  }
+
+  const getMaterialCost = (materialId: string) => {
+    const material = materials.find(m => m.id === materialId)
+    return material ? material.cost_per_unit : 0
   }
 
   return (
@@ -44,23 +49,27 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, products, mater
           <th className="py-2 px-4 border-b">Producto</th>
           <th className="py-2 px-4 border-b">Material</th>
           <th className="py-2 px-4 border-b">Cantidad por Producto</th>
-          <th className="py-2 px-4 border-b">Costo de producción</th>
-          <th className="py-2 px-4 border-b"></th>
+          <th className="py-2 px-4 border-b">Costo por Unidad</th>
+          <th className="py-2 px-4 border-b">Acciones</th>
         </tr>
       </thead>
       <tbody>
-        {recipes.map(recipe => (
-          <tr key={recipe.id}>
-            <td className="py-2 px-4 border-b">{getProductName(recipe.product_id)}</td>
-            <td className="py-2 px-4 border-b">{getMaterialName(recipe.material_id)}</td>
-            <td className="py-2 px-4 border-b">{recipe.quantity_per_product}</td>
-            <td className="py-2 px-4 border-b">${recipe.production_cost?.toFixed(2) || 'N/A'}</td>
-            <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(recipe)} variant="secondary" className="mr-2">Editar</Button>
-              <Button onClick={() => handleDelete(recipe.id)} variant="danger">Eliminar</Button>
-            </td>
-          </tr>
-        ))}
+        {recipes.map(recipe => {
+          const materialCost = getMaterialCost(recipe.material_id)
+          const totalCost = materialCost * recipe.quantity_per_product
+          return (
+            <tr key={recipe.id}>
+              <td className="py-2 px-4 border-b">{getProductName(recipe.product_id)}</td>
+              <td className="py-2 px-4 border-b">{getMaterialName(recipe.material_id)}</td>
+              <td className="py-2 px-4 border-b">{recipe.quantity_per_product}</td>
+              <td className="py-2 px-4 border-b">${materialCost.toFixed(2)}</td>
+              <td className="py-2 px-4 border-b">
+                <Button onClick={() => onEdit(recipe)} variant="secondary" className="mr-2">Editar</Button>
+                <Button onClick={() => handleDelete(recipe.id)} variant="danger">Eliminar</Button>
+              </td>
+            </tr>
+          )
+        })}
       </tbody>
     </table>
   )

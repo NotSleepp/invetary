@@ -1,9 +1,10 @@
 'use client'
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { RecipeForm } from '@/components/RecipeForm'
 import { RecipeCard } from '@/components/RecipeCard'
-import { Recipe, Product, Material } from '@/types'
+import { Recipe, Product, Material, RecipeFormData } from '@/types'
 import { useToast } from '@/contexts/ToastContext'
 import { Card } from '@/components/ui/Card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -20,6 +21,7 @@ interface GroupedRecipe {
   productId: string;
   productName: string;
   recipes: Recipe[];
+  totalProductionCost: number;
 }
 
 export default function RecipesPage() {
@@ -61,19 +63,53 @@ export default function RecipesPage() {
     fetchMaterials()
   }, [fetchRecipes, fetchProducts, fetchMaterials])
 
-  const handleSubmit = useCallback(async (data: Partial<Recipe>) => {
+  const calculateProductionCost = useCallback((formMaterials: RecipeFormData['materials']) => {
+    return formMaterials.reduce((total, formMaterial) => {
+      const material = materials.find(m => m.id === formMaterial.material_id)
+      const materialCost = material ? material.cost_per_unit : 0
+      return total + (materialCost * formMaterial.quantity_per_product)
+    }, 0)
+  }, [materials])
+
+  const handleSubmit = useCallback(async (data: RecipeFormData) => {
     try {
+      const productionCost = calculateProductionCost(data.materials)
+
       if (editingRecipe) {
-        await updateRecipe(editingRecipe.id, data)
+        // Update existing recipe
+        await updateRecipe(editingRecipe.id, {
+          product_id: data.product_id,
+          material_id: data.materials[0].material_id,
+          quantity_per_product: data.materials[0].quantity_per_product,
+          production_cost: productionCost
+        })
+        // If there are additional materials, create them as new recipes
+        for (let i = 1; i < data.materials.length; i++) {
+          await addRecipe({
+            product_id: data.product_id,
+            material_id: data.materials[i].material_id,
+            quantity_per_product: data.materials[i].quantity_per_product,
+            production_cost: productionCost
+          })
+        }
       } else {
-        await addRecipe(data)
+        // Create new recipes for each material
+        for (const material of data.materials) {
+          await addRecipe({
+            product_id: data.product_id,
+            material_id: material.material_id,
+            quantity_per_product: material.quantity_per_product,
+            production_cost: productionCost
+          })
+        }
       }
       setEditingRecipe(null)
       showToast('Receta guardada con éxito', 'success')
+      fetchRecipes()
     } catch (error) {
       showToast('Error al guardar la receta', 'error')
     }
-  }, [editingRecipe, updateRecipe, addRecipe, showToast])
+  }, [editingRecipe, updateRecipe, addRecipe, showToast, fetchRecipes, calculateProductionCost])
 
   const handleEdit = useCallback((recipe: Recipe) => {
     setEditingRecipe(recipe)
@@ -92,35 +128,43 @@ export default function RecipesPage() {
         showToast('Receta eliminada con éxito', 'success')
         setSelectedProduct(null)
         setIsModalOpen(false)
+        fetchRecipes()
       } catch (error) {
         showToast('Error al eliminar la receta', 'error')
       }
       setDeletingRecipeId(null)
     }
-  }, [deletingRecipeId, deleteRecipe, showToast])
+  }, [deletingRecipeId, deleteRecipe, showToast, fetchRecipes])
 
   const handleCardClick = useCallback((groupedRecipe: GroupedRecipe) => {
     setSelectedProduct(groupedRecipe)
     setIsModalOpen(true)
   }, [])
 
+  const calculateRecipeProductionCost = useCallback((recipe: Recipe) => {
+    const material = materials.find(m => m.id === recipe.material_id);
+    if (!material) return 0;
+    return material.cost_per_unit * recipe.quantity_per_product;
+  }, [materials]);
+
   const groupedRecipes = useMemo(() => {
     return recipes.reduce((acc, recipe) => {
-      if (recipe.product) {
-        const existingGroup = acc.find(g => g.productId === recipe.product_id);
-        if (existingGroup) {
-          existingGroup.recipes.push(recipe);
-        } else {
-          acc.push({
-            productId: recipe.product_id,
-            productName: recipe.product.name,
-            recipes: [recipe]
-          });
-        }
+      const product = products.find(p => p.id === recipe.product_id);
+      const existingGroup = acc.find(g => g.productId === recipe.product_id);
+      if (existingGroup) {
+        existingGroup.recipes.push(recipe);
+        existingGroup.totalProductionCost += calculateRecipeProductionCost(recipe);
+      } else {
+        acc.push({
+          productId: recipe.product_id,
+          productName: product ? product.name : '',
+          recipes: [recipe],
+          totalProductionCost: calculateRecipeProductionCost(recipe)
+        });
       }
       return acc;
     }, [] as GroupedRecipe[]);
-  }, [recipes]);
+  }, [recipes, products, materials, calculateRecipeProductionCost]);
 
   const loadMore = useCallback(() => {
     fetchRecipes(currentPage + 1)
@@ -174,6 +218,7 @@ export default function RecipesPage() {
                 key={groupedRecipe.productId}
                 productName={groupedRecipe.productName}
                 recipeCount={groupedRecipe.recipes.length}
+                totalProductionCost={groupedRecipe.totalProductionCost}
                 onClick={() => handleCardClick(groupedRecipe)}
               />
             ))}
@@ -188,17 +233,21 @@ export default function RecipesPage() {
           </DialogHeader>
           <DialogDescription>
             <h3 className="font-semibold mt-4 mb-2">Recetas:</h3>
-            {selectedProduct?.recipes.map((recipe) => (
-              <div key={recipe.id} className="mb-4 pb-4 border-b last:border-b-0">
-                <h4 className="font-medium">{recipe.product?.name}</h4>
-                <p><strong>Material:</strong> {recipe.material?.name}</p>
-                <p><strong>Cantidad por producto:</strong> {recipe.quantity_per_product}</p>
-                <div className="flex justify-end space-x-2 mt-2">
-                  <Button variant="secondary" onClick={() => handleEdit(recipe)}>Editar</Button>
-                  <Button variant="danger" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
+            {selectedProduct?.recipes.map((recipe) => {
+              const material = materials.find(m => m.id === recipe.material_id);
+              return (
+                <div key={recipe.id} className="mb-4 pb-4 border-b last:border-b-0">
+                  <h4 className="font-medium">{recipe.product?.name}</h4>
+                  <p><strong>Material:</strong> {material ? material.name : ''}</p>
+                  <p><strong>Cantidad por producto:</strong> {recipe.quantity_per_product}</p>
+                  <div className="flex justify-end space-x-2 mt-2">
+                    <Button variant="secondary" onClick={() => handleEdit(recipe)}>Editar</Button>
+                    <Button variant="danger" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+            <p className="font-bold mt-4">Costo de producción total: ${selectedProduct?.totalProductionCost.toFixed(2)}</p>
           </DialogDescription>
         </DialogContent>
       </Dialog>
