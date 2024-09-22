@@ -5,26 +5,31 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/Card'
 import Spinner from '@/components/ui/Spinner'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { useProfileStore } from '@/stores/profileStore'
 
 export default function ProfilePage() {
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState({ username: '', email: '' })
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const { user } = useAuth()
   const { showToast } = useToast()
+  const { 
+    username, 
+    email, 
+    isLoading, 
+    error, 
+    setUsername, 
+    setEmail, 
+    updateProfile, 
+    fetchProfile 
+  } = useProfileStore()
+
+  const [errors, setErrors] = useState({ username: '', email: '' })
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      setUsername(user.user_metadata?.username || '')
-      setEmail(user.email || '')
-    }
-  }, [user])
+    fetchProfile()
+  }, [fetchProfile])
 
   const validateForm = () => {
     let isValid = true
@@ -54,31 +59,32 @@ export default function ProfilePage() {
     if (email !== user?.email) {
       setShowConfirmDialog(true)
     } else {
-      await updateProfile()
+      await handleUpdateProfile()
     }
   }
 
-  const updateProfile = async () => {
-    setIsLoading(true)
+  const handleUpdateProfile = async () => {
     try {
-      const { error } = await supabase.auth.updateUser({ email, data: { username } })
-      if (error) throw error
+      await updateProfile(username, email)
       showToast('Perfil actualizado con éxito', 'success')
     } catch (error: any) {
       showToast(`Error al actualizar el perfil: ${error.message}`, 'error')
     } finally {
-      setIsLoading(false)
       setShowConfirmDialog(false)
     }
   }
 
   const handleUsernameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setUsername(e.target.value)
-  }, [])
+  }, [setUsername])
 
   const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value)
-  }, [])
+  }, [setEmail])
+
+  if (error) {
+    showToast(`Error: ${error}`, 'error')
+  }
 
   return (
     <AuthGuard>
@@ -107,7 +113,7 @@ export default function ProfilePage() {
       </div>
       <ConfirmDialog
         isOpen={showConfirmDialog}
-        onConfirm={updateProfile}
+        onConfirm={handleUpdateProfile}
         onCancel={() => setShowConfirmDialog(false)}
         title="Confirmar cambio de correo electrónico"
         message="¿Está seguro de que desea cambiar su correo electrónico? Esto puede requerir una nueva verificación de su cuenta."

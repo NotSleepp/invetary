@@ -1,137 +1,69 @@
 'use client'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { SaleForm } from '@/components/SaleForm'
 import { SaleList } from '@/components/SaleList'
 import { Sale } from '@/types'
-import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import debounce from 'lodash/debounce'
-import { PostgrestError } from '@supabase/supabase-js'
-
-const SALES_PER_PAGE = 20
-
-interface BasicSale {
-  id: string;
-  date: string;
-  amount: number;
-  product_name: string;
-}
-
+import { useSalesStore } from '@/stores/salesStore'
+import ErrorMessage from '@/components/ui/ErrorMessage'
 
 export default function SalesPage() {
-  const [page, setPage] = useState(1)
-  const [searchTerm, setSearchTerm] = useState('')
   const { showToast } = useToast()
-  const queryClient = useQueryClient()
+  const { 
+    sales, 
+    totalCount, 
+    page, 
+    isLoading, 
+    error, 
+    fetchSales, 
+    createSale, 
+    deleteSale, 
+    setPage, 
+    setSearchTerm 
+  } = useSalesStore()
 
-  // Función para obtener ventas
-  const fetchSales = useCallback(async ({ pageParam = 1 }): Promise<SalesData> => {
-    const from = (pageParam - 1) * SALES_PER_PAGE
-    const to = from + SALES_PER_PAGE - 1
+  useEffect(() => {
+    fetchSales()
+  }, [fetchSales])
 
-    let query = supabase
-      .from('sales')
-      .select('id, created_at, sale_price, product_id, user_id, quantity_sold', { count: 'exact' })
-      .range(from, to)
-      .order('created_at', { ascending: false })
-
-    if (searchTerm) {
-      query = query.ilike('product_id', `%${searchTerm}%`)
-    }
-
-    const { data, count, error } = await query
-
-    if (error) throw new Error('Error fetching sales')
-
-    return { 
-      sales: data?.map(sale => ({
-        ...sale,
-        amount: sale.sale_price * sale.quantity_sold,
-        date: sale.created_at, // Asumiendo que created_at es la fecha
-        product_name: '', // Necesitas obtener el nombre del producto de alguna manera
-      })) || [], 
-      totalCount: count || 0, 
-      page: pageParam 
-    }
-  }, [searchTerm])
-
-  // Query para obtener ventas
-  const { data, isLoading, isError } = useQuery<SalesData, Error>({
-    queryKey: ['sales', page, searchTerm],
-    queryFn: () => fetchSales({ pageParam: page }),
-    placeholderData: (previousData) => previousData,
-  })
-
-  // Mutación para crear una venta
-  const createSaleMutation = useMutation<unknown, PostgrestError, Partial<Sale>>({
-    mutationFn: async (newSale: Partial<Sale>) => {
-      const { data, error } = await supabase.from('sales').insert(newSale).single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales'] })
+  const handleSubmit = async (data: Partial<Sale>) => {
+    try {
+      await createSale(data)
       showToast('Venta creada con éxito', 'success')
-    },
-    onError: (error: PostgrestError) => {
-      console.error('Error al crear la venta:', error)
+    } catch (error) {
       showToast('Error al crear la venta', 'error')
-    },
-  })
+    }
+  }
 
-  // Mutación para eliminar una venta
-  const deleteSaleMutation = useMutation<unknown, PostgrestError, string>({
-    mutationFn: async (saleId: string) => {
-      const { data, error } = await supabase.from('sales').delete().eq('id', saleId).single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sales'] })
+  const handleDelete = async (saleId: string) => {
+    try {
+      await deleteSale(saleId)
       showToast('Venta eliminada con éxito', 'success')
-    },
-    onError: (error: PostgrestError) => {
-      console.error('Error al eliminar la venta:', error)
+    } catch (error) {
       showToast('Error al eliminar la venta', 'error')
-    },
-  })
+    }
+  }
 
-  // Manejadores de eventos
-  const handleSubmit = useCallback((data: Partial<Sale>) => {
-    createSaleMutation.mutate(data)
-  }, [createSaleMutation])
-
-  const handleDelete = useCallback((saleId: string) => {
-    deleteSaleMutation.mutate(saleId)
-  }, [deleteSaleMutation])
-
-  const handleSearch = useMemo(() => debounce((term: string) => {
-    setSearchTerm(term)
-    setPage(1)
-  }, 300), [])
-
-  const handlePageChange = useCallback((newPage: number) => {
+  const handlePageChange = (newPage: number) => {
     setPage(newPage)
-  }, [])
+  }
 
-  // Memoización de componentes
   const memoizedSaleForm = useMemo(() => <SaleForm onSubmit={handleSubmit} />, [handleSubmit])
   const memoizedSaleList = useMemo(() => (
     <SaleList
-      sales={data?.sales ?? []}
+      sales={sales}
       onDelete={handleDelete}
       isLoading={isLoading}
-      totalCount={data?.totalCount ?? 0}
+      totalCount={totalCount}
       page={page}
       onPageChange={handlePageChange}
     />
-  ), [data, handleDelete, isLoading, page, handlePageChange])
+  ), [sales, handleDelete, isLoading, totalCount, page, handlePageChange])
 
-  if (isError) {
-    return <div>Error al cargar las ventas. Por favor, intente de nuevo.</div>
+  if (error) {
+    return <ErrorMessage message={error} />
   }
 
   return (
@@ -141,7 +73,7 @@ export default function SalesPage() {
         <input
           type="text"
           placeholder="Buscar por nombre de producto"
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="mb-4 p-2 border rounded"
         />
         {memoizedSaleForm}
@@ -149,12 +81,6 @@ export default function SalesPage() {
       </div>
     </AuthGuard>
   )
-}
-
-interface SalesData {
-  sales: Sale[];
-  totalCount: number;
-  page: number;
 }
 
 interface SaleListProps {

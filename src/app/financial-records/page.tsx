@@ -1,87 +1,48 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { FinancialRecordForm } from '@/components/FinancialRecordForm'
 import { FinancialRecordList } from '@/components/FinancialRecordList'
 import { FinancialRecord } from '@/types'
-import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Spinner from '@/components/ui/Spinner'
 import ErrorMessage from '@/components/ui/ErrorMessage'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-
-// Función para obtener registros financieros
-const fetchFinancialRecords = async () => {
-  const { data, error } = await supabase
-    .from('financial_records')
-    .select('*')
-    .order('created_at', { ascending: false }) // Cambiado 'date' por 'created_at'
-    .range(0, 49)
-  if (error) throw new Error('Error al obtener los registros financieros')
-  return data
-}
+import { useFinancialRecordStore } from '@/stores/financialRecordStore'
 
 export default function FinancialRecordsPage() {
   const [editingRecord, setEditingRecord] = useState<FinancialRecord | null>(null)
   const [deletingRecordId, setDeletingRecordId] = useState<string | null>(null)
   const { showToast } = useToast()
-  const queryClient = useQueryClient()
 
-  // Query para obtener registros financieros
-  const { data: financialRecords, isLoading, error } = useQuery({
-    queryKey: ['financial_records'],
-    queryFn: fetchFinancialRecords,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 10,
-  })
+  const { 
+    financialRecords, 
+    isLoading, 
+    error, 
+    fetchFinancialRecords, 
+    addFinancialRecord, 
+    updateFinancialRecord, 
+    deleteFinancialRecord 
+  } = useFinancialRecordStore()
 
-  // Mutación para agregar o actualizar un registro financiero
-  const financialRecordMutation = useMutation({
-    mutationFn: async (data: Partial<FinancialRecord>) => {
+  useEffect(() => {
+    fetchFinancialRecords()
+  }, [fetchFinancialRecords])
+
+  const handleSubmit = async (data: Partial<FinancialRecord>) => {
+    try {
       if (editingRecord) {
-        const { error } = await supabase
-          .from('financial_records')
-          .update(data)
-          .eq('id', editingRecord.id)
-        if (error) throw error
+        await updateFinancialRecord(editingRecord.id, data)
+        showToast('Registro financiero actualizado con éxito', 'success')
       } else {
-        const { error } = await supabase.from('financial_records').insert(data)
-        if (error) throw error
+        await addFinancialRecord(data)
+        showToast('Registro financiero añadido con éxito', 'success')
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financial_records'] })
-      showToast(editingRecord ? 'Registro financiero actualizado con éxito' : 'Registro financiero añadido con éxito', 'success')
       setEditingRecord(null)
-    },
-    onError: () => {
+    } catch (error) {
       showToast('Error al guardar el registro financiero', 'error')
     }
-  })
-
-  // Mutación para eliminar un registro financiero
-  const deleteFinancialRecordMutation = useMutation({
-    mutationFn: async (recordId: string) => {
-      const { error } = await supabase
-        .from('financial_records')
-        .delete()
-        .eq('id', recordId)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financial_records'] })
-      showToast('Registro financiero eliminado con éxito', 'success')
-      setDeletingRecordId(null)
-    },
-    onError: () => {
-      showToast('Error al eliminar el registro financiero', 'error')
-    }
-  })
-
-  const handleSubmit = (data: Partial<FinancialRecord>) => {
-    financialRecordMutation.mutate(data)
   }
 
   const handleEdit = (record: FinancialRecord) => {
@@ -92,17 +53,21 @@ export default function FinancialRecordsPage() {
     setDeletingRecordId(recordId)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deletingRecordId) {
-      deleteFinancialRecordMutation.mutate(deletingRecordId)
+      try {
+        await deleteFinancialRecord(deletingRecordId)
+        showToast('Registro financiero eliminado con éxito', 'success')
+        setDeletingRecordId(null)
+      } catch {
+        showToast('Error al eliminar el registro financiero', 'error')
+      }
     }
   }
 
   const cancelDelete = () => {
     setDeletingRecordId(null)
   }
-
-  const memoizedRecords = useMemo(() => financialRecords || [], [financialRecords])
 
   if (isLoading) return <Spinner />
   if (error) return <ErrorMessage message="Error al cargar los registros financieros" />
@@ -116,7 +81,7 @@ export default function FinancialRecordsPage() {
           onSubmit={handleSubmit}
         />
         <FinancialRecordList
-          records={memoizedRecords}
+          records={financialRecords}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />

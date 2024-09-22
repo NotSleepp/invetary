@@ -6,31 +6,33 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/contexts/ToastContext'
-import { supabase } from '@/lib/supabase'
-import Spinner  from '@/components/ui/Spinner'
+import Spinner from '@/components/ui/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { User } from '@supabase/supabase-js'
+import { useSettingsStore } from '@/stores/settingsStore'
 
-// Añade esta definición de tipo en la parte superior del archivo
 type ExtendedUser = User & { username?: string };
 
 export default function SettingsPage() {
-  const [formData, setFormData] = useState({ username: '', email: '' })
-  const [isLoading, setIsLoading] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const { user, updateUserContext } = useAuth() as { user: ExtendedUser | null, updateUserContext: (user: ExtendedUser) => void };
   const { showToast } = useToast()
+  const { formData, isLoading, error, setFormData, updateProfile, initializeFormData } = useSettingsStore()
 
   useEffect(() => {
-    if (user) {
-      setFormData({ username: user.username || '', email: user.email || '' })
+    initializeFormData(user)
+  }, [user, initializeFormData])
+
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error')
     }
-  }, [user])
+  }, [error, showToast])
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }, [])
+    setFormData({ [name]: value })
+  }, [setFormData])
 
   const validateForm = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -52,21 +54,14 @@ export default function SettingsPage() {
   }, [formData, validateForm])
 
   const confirmUpdate = async () => {
-    setIsLoading(true)
     setShowConfirmDialog(false)
     try {
-      const { error, data } = await supabase.auth.updateUser({ 
-        email: formData.email, 
-        data: { username: formData.username } 
-      })
-      if (error) throw error
+      await updateProfile(user ? { ...user, ...formData } : null)
       if (user) {
         updateUserContext({ 
           ...user, 
-          ...data.user, 
-          username: formData.username || user.username || '',
-          email: formData.email || user.email || '',
-          role: data.user.role || user.role || ''
+          ...formData,
+          role: user.role || ''
         })
       } else {
         showToast('Error: Usuario no encontrado', 'error')
@@ -74,8 +69,6 @@ export default function SettingsPage() {
       showToast('Perfil actualizado con éxito', 'success')
     } catch (error) {
       showToast('Error al actualizar el perfil', 'error')
-    } finally {
-      setIsLoading(false)
     }
   }
 

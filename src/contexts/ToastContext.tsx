@@ -1,7 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState } from 'react'
-import { Toast } from '@/components/ui/Toast'
+import React, { createContext, useContext, useState, useRef } from 'react'
+import { Toast } from '@/components/ui/toast'
 
 type ToastType = 'success' | 'error' | 'info'
 
@@ -12,10 +12,11 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<Array<{ id: number; message: string; type: ToastType }>>([])
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: ToastType }>>([])
+  const toastIdCounter = useRef(0)
 
   const showToast = (message: string, type: ToastType) => {
-    const id = Date.now()
+    const id = `toast-${Date.now()}-${toastIdCounter.current++}`
     setToasts(prevToasts => [...prevToasts, { id, message, type }])
     setTimeout(() => {
       setToasts(prevToasts => prevToasts.filter(toast => toast.id !== id))

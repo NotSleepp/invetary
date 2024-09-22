@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuthStore } from '@/stores/authStore'
 import { useToast } from '@/contexts/ToastContext'
 import Spinner from '@/components/ui/Spinner'
 import Link from 'next/link'
@@ -17,10 +17,9 @@ interface LoginForm {
 
 export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>()
-  const { signIn, user } = useAuth()
+  const { signIn, user, isLoading, error } = useAuthStore()
   const { showToast } = useToast()
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -28,16 +27,14 @@ export default function LoginPage() {
     }
   }, [user, router])
 
-  const onSubmit = async (data: LoginForm) => {
-    setIsLoading(true)
-    try {
-      await signIn(data.email, data.password)
-      router.push('/')
-    } catch (error) {
-      showToast('Correo electrónico o contraseña inválidos', 'error')
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    if (error) {
+      showToast(error, 'error')
     }
+  }, [error, showToast])
+
+  const onSubmit = async (data: LoginForm) => {
+    await signIn(data.email, data.password)
   }
 
   if (user) {

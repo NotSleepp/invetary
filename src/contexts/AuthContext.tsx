@@ -42,39 +42,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         const { data: profile, error } = await supabase
           .from('users')
-          .select('role, username')
+          .select(`
+            username,
+            user_roles (
+              roles (
+                name
+              )
+            )
+          `)
           .eq('auth_id', session.user.id)
-          .single()
 
         if (error) {
-          if (error.code === 'PGRST116' || error.message.includes('No rows')) {
-            // Usuario no encontrado, vamos a crearlo
-            const username = session.user.email?.split('@')[0] || 'user' + Math.random().toString(36).substr(2, 9)
-            const { data: newProfile, error: insertError } = await supabase
-              .from('users')
-              .insert({
-                auth_id: session.user.id,
-                role: 'user',
-                username: username,
-                email: session.user.email,
-                password_hash: 'NO_PASSWORD' // Añadimos un valor por defecto
-              })
-              .select()
+          console.error('Error fetching user profile:', error)
+          setRole('user')
+        } else if (!profile || profile.length === 0) {
+          // Usuario no encontrado, vamos a crearlo
+          const username = session.user.email?.split('@')[0] || 'user' + Math.random().toString(36).substr(2, 9)
+          const { data: newProfile, error: insertError } = await supabase
+            .from('users')
+            .insert({
+              auth_id: session.user.id,
+              username: username,
+              email: session.user.email,
+              password_hash: 'NO_PASSWORD'
+            })
+            .select()
 
-            if (insertError) {
-              console.error('Error creating user profile:', insertError)
-              setRole('user')
-            } else if (newProfile && newProfile.length > 0) {
-              setRole(newProfile[0].role)
-            } else {
-              setRole('user')
-            }
-          } else {
-            console.error('Error fetching user profile:', error)
+          if (insertError) {
+            console.error('Error creating user profile:', insertError)
             setRole('user')
+          } else {
+            setRole('user') // Asigna un rol por defecto para el nuevo usuario
           }
         } else {
-          setRole(profile.role)
+          const userRole = profile[0]?.user_roles[0]?.roles?.[0]?.name || 'user'
+          setRole(userRole)
         }
       }
       setLoading(false)
@@ -87,7 +89,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         const { data: profile, error } = await supabase
           .from('users')
-          .select('role')
+          .select(`
+            user_roles (
+              roles (
+                name
+              )
+            )
+          `)
           .eq('auth_id', session.user.id)
           .single()
 
@@ -95,7 +103,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error fetching user profile:', error)
           setRole('user')
         } else {
-          setRole(profile.role)
+          const userRole = profile.user_roles[0]?.roles?.[0]?.name || 'user'
+          setRole(userRole)
         }
       } else {
         setRole(null)

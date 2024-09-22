@@ -1,27 +1,16 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { CategoryForm } from '@/components/CategoryForm'
 import { CategoryList } from '@/components/CategoryList'
 import { Category } from '@/types'
-import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import Spinner from '@/components/ui/Spinner'
 import ErrorMessage from '@/components/ui/ErrorMessage'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-
-// Función para obtener las categorías desde Supabase
-const fetchCategories = async () => {
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('name', { ascending: true })
-    .range(0, 49) // Implementación básica de paginación
-  if (error) throw new Error('Error fetching categories')
-  return data
-}
+import { useCategoryStore } from '@/stores/categoryStore'
 
 export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -29,59 +18,38 @@ export default function CategoriesPage() {
   const { showToast } = useToast()
   const queryClient = useQueryClient()
 
-  // Consulta de categorías con Tanstack Query
-  const { data: categories, isLoading, error } = useQuery({
-    queryKey: ['categories'], // Clave única para la consulta
-    queryFn: fetchCategories,  // Función que ejecuta la consulta
-    staleTime: 1000 * 60 * 5,  // Cache válido por 5 minutos
-    gcTime: 1000 * 60 * 10,    // Tiempo antes de que los datos inactivos sean eliminados del cache
-  })
+  const { 
+    categories, 
+    isLoading, 
+    error, 
+    fetchCategories, 
+    addCategory, 
+    updateCategory, 
+    deleteCategory 
+  } = useCategoryStore()
 
-  // Mutación para agregar o actualizar categorías
-  const categoryMutation = useMutation({
-    mutationFn: async (data: Partial<Category>) => {
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
+
+  const handleSubmit = async (data: Partial<Category>) => {
+    try {
       if (editingCategory) {
-        const { error } = await supabase
-          .from('categories')
-          .update(data)
-          .eq('id', editingCategory.id)
-        if (error) throw error
+        await updateCategory(editingCategory.id, data)
+        showToast('Categoría actualizada con éxito', 'success')
       } else {
-        const { error } = await supabase.from('categories').insert(data)
-        if (error) throw error
+        await addCategory(data)
+        showToast('Categoría añadida con éxito', 'success')
       }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] }) // Invalidar cache para refrescar
-      showToast(editingCategory ? 'Categoría actualizada con éxito' : 'Categoría añadida con éxito', 'success')
       setEditingCategory(null)
-    },
-    onError: () => {
-      showToast('Error al guardar la categoría', 'error')
+      queryClient.invalidateQueries({ queryKey: ['categories'] })
+    } catch (error) {
+      if (error instanceof Error) {
+        showToast(error.message, 'error')
+      } else {
+        showToast('Error al guardar la categoría', 'error')
+      }
     }
-  })
-
-  // Mutación para eliminar categorías
-  const deleteCategoryMutation = useMutation({
-    mutationFn: async (categoryId: string) => {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', categoryId)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] }) // Invalidar cache para refrescar
-      showToast('Categoría eliminada con éxito', 'success')
-      setDeletingCategoryId(null)
-    },
-    onError: () => {
-      showToast('Error al eliminar la categoría', 'error')
-    }
-  })
-
-  const handleSubmit = (data: Partial<Category>) => {
-    categoryMutation.mutate(data)
   }
 
   const handleEdit = (category: Category) => {
@@ -92,9 +60,16 @@ export default function CategoriesPage() {
     setDeletingCategoryId(categoryId)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deletingCategoryId) {
-      deleteCategoryMutation.mutate(deletingCategoryId)
+      try {
+        await deleteCategory(deletingCategoryId)
+        showToast('Categoría eliminada con éxito', 'success')
+        setDeletingCategoryId(null)
+        queryClient.invalidateQueries({ queryKey: ['categories'] })
+      } catch (error) {
+        showToast('Error al eliminar la categoría', 'error')
+      }
     }
   }
 
@@ -102,11 +77,8 @@ export default function CategoriesPage() {
     setDeletingCategoryId(null)
   }
 
-  const memoizedCategories = useMemo(() => categories || [], [categories])
-
-  // Manejo de estado de carga
   if (isLoading) return <Spinner />
-  if (error) return <ErrorMessage message="Error al cargar las categorías" />
+  if (error) return <ErrorMessage message={error} />
 
   return (
     <AuthGuard>
@@ -117,7 +89,7 @@ export default function CategoriesPage() {
           onSubmit={handleSubmit}
         />
         <CategoryList
-          categories={memoizedCategories}
+          categories={categories}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />

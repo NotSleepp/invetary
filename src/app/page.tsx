@@ -1,41 +1,17 @@
 'use client'
+import { useEffect } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { Card } from '@/components/ui/Card'
-import { supabase } from '@/lib/supabase'
 import { FaBox, FaCubes, FaDollarSign, FaExclamationTriangle, FaClipboardList } from 'react-icons/fa'
-import { useQuery } from '@tanstack/react-query'
 import { formatCurrency } from '@/utils/formatters'
-import { useEffect } from 'react'
-// Tipos
-type DashboardData = {
-  totalProducts: number
-  totalMaterials: number
-  totalSales: number
-  lowStockItems: number
-  totalProduction: number
-}
-
-// Función para obtener datos del dashboard
-const fetchDashboardData = async (): Promise<DashboardData> => {
-  const { data, error } = await supabase.rpc('get_dashboard_data')
-  
-  if (error) throw new Error('Error al obtener datos del dashboard')
-  
-  return {
-    totalProducts: data.total_products,
-    totalMaterials: data.total_materials,
-    totalSales: data.total_sales,
-    lowStockItems: data.low_stock_items,
-    totalProduction: data.total_production
-  }
-}
+import { useDashboardStore } from '@/stores/dashboardStore'
 
 export default function Dashboard() {
-  const { data: stats, isLoading, error } = useQuery({
-    queryKey: ['dashboardData'],
-    queryFn: fetchDashboardData,
-    staleTime: 5 * 60 * 1000, // 5 minutos
-  })
+  const { data: stats, isLoading, error, fetchDashboardData } = useDashboardStore()
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
   useEffect(() => {
     // Elimina el atributo bis_skin_checked de todos los elementos div
