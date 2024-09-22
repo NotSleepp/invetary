@@ -9,13 +9,15 @@ import Spinner from '@/components/ui/Spinner'
 import ErrorMessage from '@/components/ui/ErrorMessage'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useProductStore } from '@/stores/productStore'
-import { useCategoryStore } from '@/stores/categoryStore' // Store ya existente
-import { Product } from '@/types'; // Ajusta la ruta según sea necesario
+import { useCategoryStore } from '@/stores/categoryStore'
+import { Product } from '@/types'
+import { Modal } from '@/components/ui/Modal' // Modal importado
 
 export default function ProductsPage() {
   const { showToast } = useToast()
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false) // Estado del modal
 
   const {
     products,
@@ -24,22 +26,24 @@ export default function ProductsPage() {
     fetchProducts,
     addProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
   } = useProductStore()
 
   const {
     categories,
     isLoading: categoriesLoading,
     error: categoriesError,
-    fetchCategories
+    fetchCategories,
   } = useCategoryStore()
 
+  // Efecto para cargar productos
   useEffect(() => {
     if (products.length === 0) {
       fetchProducts()
     }
   }, [fetchProducts, products.length])
 
+  // Efecto para cargar categorías
   useEffect(() => {
     if (categories.length === 0) {
       fetchCategories()
@@ -56,6 +60,7 @@ export default function ProductsPage() {
         showToast('Producto añadido con éxito', 'success')
       }
       setEditingProduct(null)
+      setIsModalOpen(false) // Cerrar el modal después de guardar
     } catch (error) {
       showToast('Error al guardar el producto', 'error')
     }
@@ -63,6 +68,7 @@ export default function ProductsPage() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product)
+    setIsModalOpen(true) // Abrir modal para edición
   }
 
   const handleDelete = (productId: string) => {
@@ -87,22 +93,43 @@ export default function ProductsPage() {
 
   // Manejo de carga y errores
   if (productsLoading || categoriesLoading) return <Spinner />
-  if (productsError || categoriesError) return <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo más tarde." />
+  if (productsError || categoriesError)
+    return <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo más tarde." />
 
   return (
     <AuthGuard>
       <div className="p-6">
         <h1 className="text-3xl font-bold mb-6">Productos</h1>
-        <ProductForm
-          product={editingProduct || undefined}
-          categories={categories} // Ya obtenidas desde el store
-          onSubmit={handleSubmit}
-        />
+        <button
+          className="mb-4 p-2 bg-blue-500 text-white rounded"
+          onClick={() => {
+            setEditingProduct(null) // Para un nuevo producto
+            setIsModalOpen(true) // Abrir el modal
+          }}
+        >
+          Crear Nuevo Producto
+        </button>
+
         <ProductList
           products={products} // Ya obtenidos desde el store
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
+
+        {/* Modal para crear o editar productos */}
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)} // Cerrar el modal
+          title={editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
+        >
+          <ProductForm
+            product={editingProduct || undefined} // Pasar producto si está en edición
+            categories={categories} // Categorías obtenidas del store
+            onSubmit={handleSubmit} // Enviar datos
+          />
+        </Modal>
+
+        {/* Confirmación de eliminación */}
         <ConfirmDialog
           isOpen={!!deletingProductId}
           onConfirm={confirmDelete}

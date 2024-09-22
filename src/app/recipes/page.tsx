@@ -16,6 +16,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useRecipeStore } from '@/stores/recipeStore'
 import { useProductStore } from '@/stores/productStore'
 import { useMaterialStore } from '@/stores/materialStore'
+import { useCategoryStore } from '@/stores/categoryStore' // Asumiendo que existe este store
 
 interface GroupedRecipe {
   productId: string;
@@ -30,6 +31,7 @@ export default function RecipesPage() {
   const [selectedProduct, setSelectedProduct] = useState<GroupedRecipe | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null)
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false)
 
   const { 
     recipes, 
@@ -47,7 +49,8 @@ export default function RecipesPage() {
     products, 
     isLoading: loadingProducts, 
     error: errorProducts, 
-    fetchProducts 
+    fetchProducts,
+    addProduct // Añadimos esta función
   } = useProductStore()
 
   const { 
@@ -57,11 +60,19 @@ export default function RecipesPage() {
     fetchMaterials 
   } = useMaterialStore()
 
+  const { 
+    categories, 
+    isLoading: loadingCategories, 
+    error: errorCategories, 
+    fetchCategories 
+  } = useCategoryStore()
+
   useEffect(() => {
     fetchRecipes()
     fetchProducts()
     fetchMaterials()
-  }, [fetchRecipes, fetchProducts, fetchMaterials])
+    fetchCategories() // Añadir esta línea
+  }, [fetchRecipes, fetchProducts, fetchMaterials, fetchCategories])
 
   const calculateProductionCost = useCallback((formMaterials: RecipeFormData['materials']) => {
     return formMaterials.reduce((total, formMaterial) => {
@@ -170,8 +181,20 @@ export default function RecipesPage() {
     fetchRecipes(currentPage + 1)
   }, [fetchRecipes, currentPage])
 
-  if (loadingRecipes || loadingProducts || loadingMaterials) return <Spinner />
-  if (errorRecipes || errorProducts || errorMaterials) {
+  const handleCreateProduct = useCallback(async (productData: Partial<Product>) => {
+    try {
+      const newProduct = await addProduct(productData)
+      showToast('Producto creado con éxito', 'success')
+      fetchProducts() // Actualizamos la lista de productos
+      return newProduct
+    } catch (error) {
+      showToast('Error al crear el producto', 'error')
+      throw error // Propagamos el error para manejarlo en el componente RecipeForm si es necesario
+    }
+  }, [addProduct, showToast, fetchProducts])
+
+  if (loadingRecipes || loadingProducts || loadingMaterials || loadingCategories) return <Spinner />
+  if (errorRecipes || errorProducts || errorMaterials || errorCategories) {
     return (
       <div>
         <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo." />
@@ -191,7 +214,10 @@ export default function RecipesPage() {
               recipe={editingRecipe || undefined}
               products={products || []}
               materials={materials || []}
+              categories={categories || []}
               onSubmit={handleSubmit}
+              onCreateProduct={handleCreateProduct}
+              isCreatingProduct={isCreatingProduct}
             />
           </Card>
           <Card className="p-6">
