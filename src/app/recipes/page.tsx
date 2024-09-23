@@ -273,29 +273,33 @@ export default function RecipesPage() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl w-full mx-auto p-6 bg-white rounded-lg shadow-lg">
           <DialogHeader>
-            <DialogTitle>{selectedProduct?.productName}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-gray-800">{selectedProduct?.productName}</DialogTitle>
           </DialogHeader>
           <DialogDescription>
             <ScrollArea className="h-[60vh] pr-4">
-              <h3 className="font-semibold mt-4 mb-2">Receta:</h3>
+              <h3 className="font-semibold mt-4 mb-2 text-lg text-gray-700">Receta:</h3>
               {selectedProduct?.recipes.map((recipe) => {
                 const material = materials.find(m => m.id === recipe.material_id);
                 return (
                   <div key={recipe.id} className="mb-4 pb-4 border-b last:border-b-0">
-                    <h4 className="font-medium">{recipe.product?.name}</h4>
-                    <p><strong>Ingrediente:</strong> {material ? material.name : ''}</p>
-                    <p><strong>Cantidad:</strong> {recipe.quantity_per_product}</p>
+                    <h4 className="font-medium text-gray-800">{recipe.product?.name}</h4>
+                    <p className="text-gray-600"><strong>Ingrediente:</strong> {material ? material.name : 'N/A'}</p>
+                    <p className="text-gray-600"><strong>Cantidad:</strong> {recipe.quantity_per_product}</p>
                     <div className="flex justify-end space-x-2 mt-2">
-                      <Button variant="secondary" onClick={() => handleEdit(recipe)}>Editar</Button>
-                      <Button variant="destructive" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
+                      <Button variant="outline" onClick={() => handleEdit(recipe)} className="flex items-center">
+                        Editar
+                      </Button>
+                      <Button variant="destructive" onClick={() => handleDelete(recipe.id)} className="flex items-center">
+                        Eliminar
+                      </Button>
                     </div>
                   </div>
                 );
               })}
             </ScrollArea>
-            <p className="font-bold mt-4">Costo de producción total: ${selectedProduct?.totalProductionCost.toFixed(2)}</p>
+            <p className="font-bold mt-4 text-gray-800">Costo de producción total: ${selectedProduct?.totalProductionCost.toFixed(2)}</p>
           </DialogDescription>
         </DialogContent>
       </Dialog>

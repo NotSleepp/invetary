@@ -4,49 +4,50 @@ import React from 'react'
 import { Supplier, PartialSupplier } from '@/types'
 import { Button } from './ui/Button'
 import { useToast } from '@/contexts/ToastContext'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { Card } from './ui/Card'
 
 interface SupplierListProps {
   suppliers: PartialSupplier[];
-  onEdit: (supplier: PartialSupplier) => void; // Cambiado de Supplier a PartialSupplier
+  onEdit: (supplier: PartialSupplier) => void;
   onDelete: (supplierId: string) => void;
-  isDeleting: boolean;
 }
 
-export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, onDelete, isDeleting }) => {
+export const SupplierList: React.FC<SupplierListProps> = ({ suppliers, onEdit, onDelete }) => {
   const { showToast } = useToast()
 
   const handleDelete = async (supplierId: string) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este proveedor?')) {
-      try {
-        await onDelete(supplierId)
-        showToast('Proveedor eliminado con éxito', 'success')
-      } catch (error) {
-        showToast('Error al eliminar el proveedor', 'error')
-      }
+    try {
+      await onDelete(supplierId)
+      showToast('Proveedor eliminado con éxito', 'success')
+    } catch (error) {
+      showToast('Error al eliminar el proveedor', 'error')
     }
   }
 
   return (
-    <table className="min-w-full bg-white">
-      <thead>
-        <tr>
-          <th className="py-2 px-4 border-b">Nombre</th>
-          <th className="py-2 px-4 border-b">Información de contacto</th>
-          <th className="py-2 px-4 border-b"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {suppliers.map(supplier => (
-          <tr key={supplier.id}>
-            <td className="py-2 px-4 border-b">{supplier.name}</td>
-            <td className="py-2 px-4 border-b">{supplier.contact_info}</td>
-            <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(supplier)} variant="secondary">Editar</Button>
-              <Button onClick={() => handleDelete(supplier.id)} variant="danger" disabled={isDeleting}>Eliminar</Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {suppliers.map(supplier => (
+        <Card key={supplier.id} className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow duration-300">
+          <h3 className="text-lg font-semibold mb-2">{supplier.name ?? 'N/A'}</h3>
+          <div className="mb-2">
+            <span className="font-medium">Email:</span> {supplier.email ?? 'N/A'}
+          </div>
+          <div className="mb-2">
+            <span className="font-medium">Teléfono:</span> {supplier.phone ?? 'N/A'}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => onEdit(supplier)} variant="outline" className="flex items-center">
+              <PencilIcon className="h-4 w-4 mr-1" />
+              Editar
+            </Button>
+            <Button onClick={() => handleDelete(supplier.id!)} variant="outline" className="flex items-center">
+              <TrashIcon className="h-4 w-4 mr-1" />
+              Eliminar
+            </Button>
+          </div>
+        </Card>
+      ))}
+    </div>
   )
 }

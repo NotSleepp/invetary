@@ -1,12 +1,12 @@
-'use client'
+'use client';
 
-import React from 'react'
-import { useForm } from 'react-hook-form'
-import { Input } from './ui/Input'
-import { Select } from './ui/Select'
-import { Button } from './ui/Button'
-import { ProductionLog, Product, Recipe, Material } from '@/types'
-import { useToast } from '@/contexts/ToastContext'
+import React, { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { Input } from "./ui/Input";
+import { Select } from "./ui/Select";
+import { Button } from "./ui/Button";
+import { ProductionLog, Product, Recipe, Material } from "@/types";
+import { useToast } from "@/contexts/ToastContext";
 
 interface ProductionFormProps {
   productionLog?: ProductionLog;
@@ -15,74 +15,148 @@ interface ProductionFormProps {
   materials: Material[];
 }
 
-export const ProductionForm: React.FC<ProductionFormProps> = ({ productionLog, onSubmit, products, materials }) => {
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<Partial<ProductionLog>>({
-    defaultValues: productionLog || {}
-  })
-  const { showToast } = useToast()
+interface MaterialNeeded {
+  id: string;
+  name: string;
+  quantity: number;
+  stock: number;
+}
 
-  const selectedProductId = watch('product_id')
-  const quantityProduced = watch('quantity_produced')
+export const ProductionForm: React.FC<ProductionFormProps> = ({
+  productionLog,
+  onSubmit,
+  products,
+  materials,
+}) => {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+    setValue,
+  } = useForm<Partial<ProductionLog>>({
+    defaultValues: productionLog || {},
+  });
+  const { showToast } = useToast();
 
-  const onSubmitForm = async (data: Partial<ProductionLog>) => {
+  const [selectedProduct, setSelectedProduct] = useState<(Product & { recipes: Recipe[] }) | null>(null);
+  const [materialsNeeded, setMaterialsNeeded] = useState<MaterialNeeded[]>([]);
+
+  const productId = watch("product_id");
+  const quantityProduced = watch("quantity_produced");
+
+  useEffect(() => {
+    if (productId) {
+      const product = products.find((p) => Number(p.id) === Number(productId));
+      console.log("Selected product:", product); // Log the selected product
+      if (product) {
+        console.log("Product recipes:", product.recipes); // Log the recipes of the selected product
+      }
+      setSelectedProduct(product || null);
+    } else {
+      setSelectedProduct(null);
+    }
+  }, [productId, products]);
+
+  useEffect(() => {
+    if (selectedProduct && quantityProduced) {
+      console.log("Selected product recipes:", selectedProduct.recipes); // Log the recipes of the selected product
+      const neededMaterials: MaterialNeeded[] = selectedProduct.recipes.map((recipe) => {
+        const material = materials.find((m) => Number(m.id) === Number(recipe.material_id));
+        return {
+          id: recipe.material_id,
+          name: material?.name || "Unknown",
+          quantity: recipe.quantity_per_product * Number(quantityProduced),
+          stock: material?.stock_quantity || 0,
+        };
+      });
+      setMaterialsNeeded(neededMaterials);
+    } else {
+      setMaterialsNeeded([]);
+    }
+  }, [selectedProduct, quantityProduced, materials]);
+
+  const onSubmitForm = async (data: Partial<ProductionLog>): Promise<void> => {
     try {
-      const selectedProduct = products.find(p => p.id === data.product_id)
       if (!selectedProduct) {
-        throw new Error('Producto seleccionado no encontrado')
+        throw new Error("No se ha seleccionado un producto");
       }
 
-      const totalCost = selectedProduct.recipes.reduce((acc, recipe) => {
-        const material = materials.find(m => m.id === recipe.material_id)
-        return acc + (material?.cost_per_unit || 0) * recipe.quantity_per_product * (Number(data.quantity_produced) || 0)
-      }, 0)
+      console.log("Selected product at submission:", selectedProduct); // Log the selected product at submission
 
-      await onSubmit({ ...data, total_cost: totalCost })
-      showToast('Registro de producción guardado con éxito', 'success')
+      if (!selectedProduct.recipes || selectedProduct.recipes.length === 0) {
+        console.log("No recipes found for this product");
+        throw new Error("El producto seleccionado no tiene recetas asociadas");
+      }
+
+      const stockInsuficiente = materialsNeeded.some(
+        (material) => material.quantity > material.stock
+      );
+
+      if (stockInsuficiente) {
+        showToast(
+          "Stock insuficiente de materiales para completar la producción",
+          "error"
+        );
+        return;
+      }
+
+      // Include recipes in the submitted data
+      const dataWithRecipes = {
+        ...data,
+        recipes: selectedProduct.recipes,
+      };
+
+      await onSubmit(dataWithRecipes);
     } catch (error) {
-      console.error('Error al guardar el registro de producción:', error)
-      showToast('Error al guardar el registro de producción', 'error')
+      console.error("Error al guardar el registro de producción:", error);
+      showToast(`Error al guardar el registro de producción: ${(error as Error).message}`, "error");
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
       <Select
         label="Producto"
-        options={products.map(product => ({ value: product.id, label: product.name }))}
-        {...register('product_id', { required: 'El producto es requerido' })}
+        options={products.map((product) => ({
+          value: String(product.id),
+          label: product.name,
+        }))}
+        {...register("product_id", { required: "El producto es requerido" })}
         error={errors.product_id?.message}
       />
       <Input
         label="Cantidad Producida"
         type="number"
-        {...register('quantity_produced', { 
-          required: 'La cantidad es requerida', 
-          min: { value: 1, message: 'La cantidad debe ser mayor que 0' }
+        {...register("quantity_produced", {
+          required: "La cantidad es requerida",
+          min: { value: 1, message: "La cantidad debe ser mayor que 0" },
         })}
         error={errors.quantity_produced?.message}
       />
-      {selectedProductId && quantityProduced && (
+      {materialsNeeded.length > 0 && (
         <div className="mt-4">
           <h3 className="font-bold mb-2">Materiales Necesarios:</h3>
           <ul className="list-disc pl-5 space-y-1">
-            {products
-              .find(p => p.id === selectedProductId)
-              ?.recipes.map(recipe => {
-                const material = materials.find(m => m.id === recipe.material_id)
-                const quantityNeeded = recipe.quantity_per_product * Number(quantityProduced)
-                return (
-                  <li key={recipe.id} className={material?.stock_quantity && quantityNeeded > material.stock_quantity ? 'text-red-500' : ''}>
-                    {material?.name}: {quantityNeeded.toFixed(2)} 
-                    {material?.stock_quantity && quantityNeeded > material.stock_quantity && ' (Stock insuficiente)'}
-                  </li>
-                )
-              })}
+            {materialsNeeded.map((material, index) => (
+              <li
+                key={`${material.id}-${index}`}
+                className={material.quantity > material.stock ? "text-red-500" : ""}
+              >
+                {material.name}: {material.quantity.toFixed(2)}
+                {material.quantity > material.stock && " (Stock insuficiente)"}
+              </li>
+            ))}
           </ul>
         </div>
       )}
       <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? 'Guardando...' : (productionLog ? 'Actualizar Registro' : 'Crear Registro')}
+        {isSubmitting
+          ? "Guardando..."
+          : productionLog
+          ? "Actualizar Registro"
+          : "Crear Registro"}
       </Button>
     </form>
-  )
-}
+  );
+};

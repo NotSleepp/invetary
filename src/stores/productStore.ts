@@ -51,30 +51,25 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       // Excluimos el campo 'id' de los datos a actualizar
       const { id: _, ...updateData } = data;
-
-      const response = await fetch(`/api/products/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar el producto');
-      }
-
-      const updatedProduct = await response.json();
+  
+      const { error, data: updatedProduct } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', id)
+        .select();
+  
+      if (error) throw error;
+  
       set((state) => ({
         products: state.products.map((product) =>
-          product.id === id ? updatedProduct : product
+          product.id === id ? updatedProduct[0] : product
         ),
       }));
     } catch (error) {
-      console.error('Error al actualizar el producto:', error);
-      throw error;
+      set({ error: 'Error al actualizar el producto' });
     }
   },
+  
 
   deleteProduct: async (id) => {
     try {

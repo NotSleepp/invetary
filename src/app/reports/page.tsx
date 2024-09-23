@@ -9,7 +9,7 @@ import Spinner from '@/components/ui/Spinner'
 import ErrorMessage from '@/components/ui/ErrorMessage'
 import { Button } from '@/components/ui/Button'
 import { RefreshCcw } from 'lucide-react'
-
+ 
 export default function ReportsPage() {
   const { showToast } = useToast()
   const { 

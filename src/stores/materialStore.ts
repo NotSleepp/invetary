@@ -47,9 +47,12 @@ export const useMaterialStore = create<MaterialState>((set, get) => ({
 
   updateMaterial: async (id, material) => {
     try {
+      // Remove the 'id' field from the material object
+      const { id: _, ...updateData } = material;
+  
       const { data, error } = await supabase
         .from('materials')
-        .update(material)
+        .update(updateData)
         .eq('id', id)
         .select()
       if (error) throw error

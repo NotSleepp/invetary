@@ -25,7 +25,8 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({ material, categories
 
   const onSubmitForm = async (data: Partial<Material>) => {
     try {
-      await onSubmit(data);
+      const { id, ...submitData } = data;
+      await onSubmit(submitData);
       showToast('Material guardado exitosamente', 'success');
     } catch (error) {
       showToast('Error al guardar el material', 'error');

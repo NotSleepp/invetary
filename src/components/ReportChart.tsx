@@ -2,7 +2,10 @@
 'use client'
 
 import React from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Line } from 'react-chartjs-2'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
 interface ChartData {
   name: string
@@ -16,19 +19,52 @@ interface ReportChartProps {
 }
 
 export const ReportChart: React.FC<ReportChartProps> = ({ data, title, dataKey }) => {
+  const chartData = {
+    labels: data.map(d => d.name),
+    datasets: [
+      {
+        label: title,
+        data: data.map(d => d.value),
+        borderColor: '#8884d8',
+        backgroundColor: 'rgba(136, 132, 216, 0.2)',
+        pointBackgroundColor: '#8884d8',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#8884d8',
+      },
+    ],
+  }
+
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+      },
+      title: {
+        display: true,
+        text: title,
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Name',
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Value',
+        },
+      },
+    },
+  }
+
   return (
     <div className="w-full h-64">
-      <h2 className="text-xl font-bold mb-4">{title}</h2>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey={dataKey} stroke="#8884d8" activeDot={{ r: 8 }} />
-        </LineChart>
-      </ResponsiveContainer>
+      <Line data={chartData} options={options} />
     </div>
   )
 }

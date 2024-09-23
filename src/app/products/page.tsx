@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { ProductForm } from '@/components/ProductForm'
 import { useToast } from '@/contexts/ToastContext'
@@ -13,9 +13,7 @@ import { Product } from '@/types'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
 import { PlusIcon, SearchIcon } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { ProductList } from '@/components/ProductList'
 
 export default function ProductsPage() {
@@ -42,15 +40,19 @@ export default function ProductsPage() {
     fetchCategories,
   } = useCategoryStore()
 
-  useEffect(() => {
+  // Wrap the fetchProducts and fetchCategories in useCallback
+  const loadInitialData = useCallback(() => {
     fetchProducts()
     fetchCategories()
   }, [fetchProducts, fetchCategories])
 
+  useEffect(() => {
+    loadInitialData()
+  }, [loadInitialData])
+
   const handleSubmit = async (data: Partial<Product>) => {
     try {
       if (editingProduct) {
-        // Eliminar el campo 'id' de los datos antes de actualizar
         const { id, ...updateData } = data;
         await updateProduct(editingProduct.id, updateData);
         showToast('Producto actualizado con éxito', 'success');
