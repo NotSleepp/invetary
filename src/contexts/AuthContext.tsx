@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { User } from '@/types' // Ajusta la ruta según donde esté definido User
+import Spinner from '@/components/ui/Spinner' // Asegúrate de tener un componente Spinner
 
 interface AuthContextType {
   user: SupabaseUser | null
@@ -30,85 +31,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const loadSession = async () => {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError) {
-        console.error('Error loading session:', sessionError)
-        setLoading(false)
-        return
-      }
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) {
+          console.error('Error loading session:', sessionError)
+          return
+        }
 
-      setUser(session?.user ?? null)
+        setUser(session?.user ?? null)
 
-      if (session?.user) {
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select(`
-            username,
-            user_roles (
-              roles (
-                name
-              )
-            )
-          `)
-          .eq('auth_id', session.user.id)
-
-        if (error) {
-          console.error('Error fetching user profile:', error)
-          setRole('user')
-        } else if (!profile || profile.length === 0) {
-          // Usuario no encontrado, vamos a crearlo
-          const username = session.user.email?.split('@')[0] || 'user' + Math.random().toString(36).substr(2, 9)
-          const { data: newProfile, error: insertError } = await supabase
+        if (session?.user) {
+          const { data: profile, error } = await supabase
             .from('users')
-            .insert({
-              auth_id: session.user.id,
-              username: username,
-              email: session.user.email,
-              password_hash: 'NO_PASSWORD'
-            })
-            .select()
+            .select(`
+              username,
+              user_roles (
+                roles (
+                  name
+                )
+              )
+            `)
+            .eq('auth_id', session.user.id)
 
-          if (insertError) {
-            console.error('Error creating user profile:', insertError)
-            setRole('user')
+          if (error) {
+            console.error('Error fetching user profile:', error)
+            setRole('user') // Rol por defecto
           } else {
-            setRole('user') // Asigna un rol por defecto para el nuevo usuario
+            const userRole = profile?.[0]?.user_roles?.[0]?.roles?.[0]?.name || 'user'
+            setRole(userRole)
           }
         } else {
-          const userRole = profile[0]?.user_roles[0]?.roles?.[0]?.name || 'user'
-          setRole(userRole)
+          setRole(null)
         }
+      } catch (error) {
+        console.error('Error en la autenticación:', error)
+      } finally {
+        setLoading(false) // Asegura que el estado de loading siempre cambie
       }
-      setLoading(false)
     }
 
     loadSession()
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        const { data: profile, error } = await supabase
-          .from('users')
-          .select(`
-            user_roles (
-              roles (
-                name
-              )
-            )
-          `)
-          .eq('auth_id', session.user.id)
-          .single()
-
-        if (error) {
-          console.error('Error fetching user profile:', error)
-          setRole('user')
-        } else {
-          const userRole = profile.user_roles[0]?.roles?.[0]?.name || 'user'
-          setRole(userRole)
-        }
-      } else {
-        setRole(null)
-      }
       setLoading(false)
     })
 
@@ -118,23 +83,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+    setLoading(true) // Mostrar spinner durante el login
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-  }
-
-  const updateUserContext = (user: SupabaseUser) => {
-    setUser(user)
-    // Actualiza el rol si es necesario
+    try {
+      setLoading(true) // Mostrar spinner durante el logout
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, role, signIn, signOut, loading, updateUserContext }}>
-      {children}
+    <AuthContext.Provider value={{ user, role, signIn, signOut, loading, updateUserContext: () => {} }}>
+      {loading ? <Spinner /> : children} {/* Mostrar Spinner mientras carga la autenticación */}
     </AuthContext.Provider>
   )
 }

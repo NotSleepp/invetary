@@ -67,9 +67,6 @@ export default function ProductionPage() {
 
   const handleSubmit = async (data: Partial<ProductionLog>) => {
     try {
-      console.log("Data received for submission:", data);
-      console.log("Products with recipes:", productsWithRecipes);
-
       if (!productsWithRecipes || productsWithRecipes.length === 0) {
         throw new Error("No hay productos disponibles.");
       }
@@ -78,13 +75,11 @@ export default function ProductionPage() {
         (p) => Number(p.id) === Number(data.product_id)
       );
 
-      console.log("Selected product:", selectedProduct);
-
       if (
         !selectedProduct ||
-        !('recipes' in selectedProduct) || // Verifica si 'recipes' existe en selectedProduct
+        !('recipes' in selectedProduct) ||
         !selectedProduct.recipes ||
-        !Array.isArray(selectedProduct.recipes) || // Verificar si recipes es un array
+        !Array.isArray(selectedProduct.recipes) ||
         selectedProduct.recipes.length === 0
       ) {
         throw new Error("El producto no tiene recetas asociadas");
@@ -192,7 +187,6 @@ export default function ProductionPage() {
       ...product,
       recipes: recipes.filter((recipe) => recipe.product_id === product.id),
     }));
-    console.log("Products with recipes after mapping:", productsWithRecipes);
     return productsWithRecipes;
   }, [products, recipes]);
 

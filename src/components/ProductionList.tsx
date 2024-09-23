@@ -13,8 +13,6 @@ interface ProductionListProps {
 }
 
 export const ProductionList: React.FC<ProductionListProps> = ({ productionLogs, onEdit, onDelete }) => {
-  console.log('ProductionLogs in ProductionList:', productionLogs);
-
   return (
     <>
       {productionLogs.length === 0 ? (

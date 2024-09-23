@@ -13,6 +13,8 @@ interface ProductionFormProps {
   onSubmit: (data: Partial<ProductionLog>) => Promise<void>;
   products: (Product & { recipes: Recipe[] })[];
   materials: Material[];
+  userId: number;
+  branchId: number;
 }
 
 interface MaterialNeeded {
@@ -27,6 +29,8 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   onSubmit,
   products,
   materials,
+  userId,
+  branchId,
 }) => {
   const {
     register,
@@ -48,10 +52,6 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
   useEffect(() => {
     if (productId) {
       const product = products.find((p) => Number(p.id) === Number(productId));
-      console.log("Selected product:", product); // Log the selected product
-      if (product) {
-        console.log("Product recipes:", product.recipes); // Log the recipes of the selected product
-      }
       setSelectedProduct(product || null);
     } else {
       setSelectedProduct(null);
@@ -60,7 +60,6 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
 
   useEffect(() => {
     if (selectedProduct && quantityProduced) {
-      console.log("Selected product recipes:", selectedProduct.recipes); // Log the recipes of the selected product
       const neededMaterials: MaterialNeeded[] = selectedProduct.recipes.map((recipe) => {
         const material = materials.find((m) => Number(m.id) === Number(recipe.material_id));
         return {
@@ -82,10 +81,7 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         throw new Error("No se ha seleccionado un producto");
       }
 
-      console.log("Selected product at submission:", selectedProduct); // Log the selected product at submission
-
       if (!selectedProduct.recipes || selectedProduct.recipes.length === 0) {
-        console.log("No recipes found for this product");
         throw new Error("El producto seleccionado no tiene recetas asociadas");
       }
 
@@ -101,15 +97,27 @@ export const ProductionForm: React.FC<ProductionFormProps> = ({
         return;
       }
 
-      // Include recipes in the submitted data
-      const dataWithRecipes = {
-        ...data,
-        recipes: selectedProduct.recipes,
+      const totalCost = selectedProduct.recipes.reduce((acc, recipe) => {
+        const material = materials.find(
+          (m) => m.id === recipe.material_id
+        );
+        return (
+          acc +
+          (material?.cost_per_unit || 0) *
+            recipe.quantity_per_product *
+            (Number(data.quantity_produced) || 0)
+        );
+      }, 0);
+
+      const payload = {
+        product_id: data.product_id,
+        quantity_produced: data.quantity_produced,
+        total_cost: totalCost,
+        branch_id: branchId
       };
 
-      await onSubmit(dataWithRecipes);
+      await onSubmit(payload);
     } catch (error) {
-      console.error("Error al guardar el registro de producción:", error);
       showToast(`Error al guardar el registro de producción: ${(error as Error).message}`, "error");
     }
   };

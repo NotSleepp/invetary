@@ -7,6 +7,7 @@ import { FaBox, FaCubes, FaDollarSign, FaExclamationTriangle, FaClipboardList } 
 import { formatCurrency } from '@/utils/formatters'
 import { useDashboardStore } from '@/stores/dashboardStore'
 import { motion } from 'framer-motion'
+import Spinner from '@/components/ui/Spinner'
 
 export default function Dashboard() {
   const { data: stats, isLoading, error, fetchDashboardData } = useDashboardStore()
@@ -16,7 +17,11 @@ export default function Dashboard() {
   }, [fetchDashboardData])
 
   if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen" aria-live="polite">Cargando datos...</div>
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner />
+      </div>
+    )
   }
 
   if (error) {
