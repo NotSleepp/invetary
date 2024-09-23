@@ -1,6 +1,6 @@
-// RecipeCard.tsx
 import React from 'react';
 import { Card } from '@/components/ui/Card';
+import { motion } from 'framer-motion';
 
 interface RecipeCardProps {
   productName: string;
@@ -11,14 +11,30 @@ interface RecipeCardProps {
 
 export const RecipeCard: React.FC<RecipeCardProps> = ({ productName, recipeCount, totalProductionCost, onClick }) => {
   return (
-    <div onClick={onClick} className="cursor-pointer">
-      <Card className="hover:shadow-lg transition-shadow">
-        <div className="p-4">
-          <h3 className="text-lg font-semibold">{productName}</h3>
-          <p>Número de Ingredientes: {recipeCount}</p>
-          <p>Costo de producción total: {totalProductionCost !== undefined ? `$${totalProductionCost.toFixed(2)}` : 'N/A'}</p>
+    <motion.div
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className="cursor-pointer"
+    >
+      <Card className="hover:shadow-lg transition-shadow duration-300 bg-white">
+        <div className="p-6">
+          <h3 className="text-xl font-semibold mb-2 text-gray-800">{productName}</h3>
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Número de Ingredientes:</span> {recipeCount}
+            </p>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Costo de producción total:</span>{' '}
+              {totalProductionCost !== undefined ? (
+                <span className="text-green-600 font-semibold">${totalProductionCost.toFixed(2)}</span>
+              ) : (
+                'N/A'
+              )}
+            </p>
+          </div>
         </div>
       </Card>
-    </div>
+    </motion.div>
   );
 };

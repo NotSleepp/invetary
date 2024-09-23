@@ -9,14 +9,17 @@ import { useToast } from '@/contexts/ToastContext'
 import { Card } from '@/components/ui/Card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/Button'
-import { RecipeList } from '@/components/RecipeList'
 import Spinner from '@/components/ui/Spinner'
 import ErrorMessage from '@/components/ui/ErrorMessage'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useRecipeStore } from '@/stores/recipeStore'
 import { useProductStore } from '@/stores/productStore'
 import { useMaterialStore } from '@/stores/materialStore'
-import { useCategoryStore } from '@/stores/categoryStore' // Asumiendo que existe este store
+import { useCategoryStore } from '@/stores/categoryStore'
+import { Input } from '@/components/ui/Input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { motion, AnimatePresence } from 'framer-motion'
+import { PlusIcon, SearchIcon } from 'lucide-react'
 
 interface GroupedRecipe {
   productId: string;
@@ -32,6 +35,8 @@ export default function RecipesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [deletingRecipeId, setDeletingRecipeId] = useState<string | null>(null)
   const [isCreatingProduct, setIsCreatingProduct] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isFormVisible, setIsFormVisible] = useState(false)
 
   const { 
     recipes, 
@@ -40,9 +45,7 @@ export default function RecipesPage() {
     fetchRecipes,
     addRecipe,
     updateRecipe,
-    deleteRecipe,
-    totalCount,
-    currentPage
+    deleteRecipe
   } = useRecipeStore()
 
   const { 
@@ -50,7 +53,7 @@ export default function RecipesPage() {
     isLoading: loadingProducts, 
     error: errorProducts, 
     fetchProducts,
-    addProduct // Añadimos esta función
+    addProduct
   } = useProductStore()
 
   const { 
@@ -71,7 +74,7 @@ export default function RecipesPage() {
     fetchRecipes()
     fetchProducts()
     fetchMaterials()
-    fetchCategories() // Añadir esta línea
+    fetchCategories()
   }, [fetchRecipes, fetchProducts, fetchMaterials, fetchCategories])
 
   const calculateProductionCost = useCallback((formMaterials: RecipeFormData['materials']) => {
@@ -87,14 +90,12 @@ export default function RecipesPage() {
       const productionCost = calculateProductionCost(data.materials)
 
       if (editingRecipe) {
-        // Update existing recipe
         await updateRecipe(editingRecipe.id, {
           product_id: data.product_id,
           material_id: data.materials[0].material_id,
           quantity_per_product: data.materials[0].quantity_per_product,
           production_cost: productionCost
         })
-        // If there are additional materials, create them as new recipes
         for (let i = 1; i < data.materials.length; i++) {
           await addRecipe({
             product_id: data.product_id,
@@ -104,7 +105,6 @@ export default function RecipesPage() {
           })
         }
       } else {
-        // Create new recipes for each material
         for (const material of data.materials) {
           await addRecipe({
             product_id: data.product_id,
@@ -115,6 +115,7 @@ export default function RecipesPage() {
         }
       }
       setEditingRecipe(null)
+      setIsFormVisible(false)
       showToast('Receta guardada con éxito', 'success')
       fetchRecipes()
     } catch (error) {
@@ -126,6 +127,7 @@ export default function RecipesPage() {
     setEditingRecipe(recipe)
     setSelectedProduct(null)
     setIsModalOpen(false)
+    setIsFormVisible(true)
   }, [])
 
   const handleDelete = useCallback((recipeId: string) => {
@@ -177,78 +179,96 @@ export default function RecipesPage() {
     }, [] as GroupedRecipe[]);
   }, [recipes, products, materials, calculateRecipeProductionCost]);
 
-  const loadMore = useCallback(() => {
-    fetchRecipes(currentPage + 1)
-  }, [fetchRecipes, currentPage])
+  const filteredGroupedRecipes = useMemo(() => {
+    return groupedRecipes.filter(group => 
+      group.productName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [groupedRecipes, searchTerm]);
 
   const handleCreateProduct = useCallback(async (productData: Partial<Product>) => {
     try {
+      setIsCreatingProduct(true)
       const newProduct = await addProduct(productData)
       showToast('Producto creado con éxito', 'success')
-      fetchProducts() // Actualizamos la lista de productos
+      fetchProducts()
       return newProduct
     } catch (error) {
       showToast('Error al crear el producto', 'error')
-      throw error // Propagamos el error para manejarlo en el componente RecipeForm si es necesario
+      throw error
+    } finally {
+      setIsCreatingProduct(false)
     }
   }, [addProduct, showToast, fetchProducts])
 
   if (loadingRecipes || loadingProducts || loadingMaterials || loadingCategories) return <Spinner />
   if (errorRecipes || errorProducts || errorMaterials || errorCategories) {
     return (
-      <div>
+      <div className="flex flex-col items-center justify-center h-screen">
         <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo." />
-        <Button onClick={() => fetchRecipes()}>Reintentar</Button>
+        <Button onClick={() => fetchRecipes()} className="mt-4">Reintentar</Button>
       </div>
     )
   }
 
   return (
     <AuthGuard>
-      <div className="space-y-8">
-        <h1 className="text-4xl font-extrabold text-gray-800">Recetas</h1>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">{editingRecipe ? 'Editar Receta' : 'Añadir Nueva Receta'}</h2>
-            <RecipeForm
-              recipe={editingRecipe || undefined}
-              products={products || []}
-              materials={materials || []}
-              categories={categories || []}
-              onSubmit={handleSubmit}
-              onCreateProduct={handleCreateProduct}
-              isCreatingProduct={isCreatingProduct}
+      <div className="p-4 sm:p-6 lg:p-8">
+        
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <div className="relative w-full md:w-80 mb-4 md:mb-0">
+            <Input
+              type="text"
+              placeholder="Buscar recetas..."
+              label="Búsqueda"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-4 py-3 rounded-full border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 ease-in-out"
             />
-          </Card>
-          <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Lista de Recetas</h2>
-            <RecipeList
-              recipes={recipes}
-              products={products || []}
-              materials={materials || []}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-            {recipes.length < totalCount && (
-              <Button onClick={loadMore} className="mt-4">
-                Cargar más recetas
-              </Button>
-            )}
-          </Card>
-        </div>
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-4">Tarjetas de Productos</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {groupedRecipes.map((groupedRecipe) => (
-              <RecipeCard
-                key={groupedRecipe.productId}
-                productName={groupedRecipe.productName}
-                recipeCount={groupedRecipe.recipes.length}
-                totalProductionCost={groupedRecipe.totalProductionCost}
-                onClick={() => handleCardClick(groupedRecipe)}
-              />
-            ))}
+            <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-6 w-6" />
           </div>
+          <Button 
+            onClick={() => setIsFormVisible(!isFormVisible)} 
+            className="w-full md:w-auto bg-gradient-to-r from-[#1e2837] to-[#101826] hover:from-[#080d14] hover:to-[#1e2837] text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105"
+          >
+            <PlusIcon className="mr-2 h-5 w-5" />
+            {isFormVisible ? 'Ocultar Formulario' : 'Añadir Nueva Receta'}
+          </Button>
+        </div>
+
+        <AnimatePresence>
+          {isFormVisible && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="p-6 mb-8">
+                <h2 className="text-2xl font-bold mb-4">{editingRecipe ? 'Editar Receta' : 'Añadir Nueva Receta'}</h2>
+                <RecipeForm
+                  recipe={editingRecipe || undefined}
+                  products={products || []}
+                  materials={materials || []}
+                  categories={categories || []}
+                  onSubmit={handleSubmit}
+                  onCreateProduct={handleCreateProduct}
+                  isCreatingProduct={isCreatingProduct}
+                />
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredGroupedRecipes.map((groupedRecipe) => (
+            <RecipeCard
+              key={groupedRecipe.productId}
+              productName={groupedRecipe.productName}
+              recipeCount={groupedRecipe.recipes.length}
+              totalProductionCost={groupedRecipe.totalProductionCost}
+              onClick={() => handleCardClick(groupedRecipe)}
+            />
+          ))}
         </div>
       </div>
 
@@ -258,21 +278,23 @@ export default function RecipesPage() {
             <DialogTitle>{selectedProduct?.productName}</DialogTitle>
           </DialogHeader>
           <DialogDescription>
-            <h3 className="font-semibold mt-4 mb-2">Recetas:</h3>
-            {selectedProduct?.recipes.map((recipe) => {
-              const material = materials.find(m => m.id === recipe.material_id);
-              return (
-                <div key={recipe.id} className="mb-4 pb-4 border-b last:border-b-0">
-                  <h4 className="font-medium">{recipe.product?.name}</h4>
-                  <p><strong>Material:</strong> {material ? material.name : ''}</p>
-                  <p><strong>Cantidad por producto:</strong> {recipe.quantity_per_product}</p>
-                  <div className="flex justify-end space-x-2 mt-2">
-                    <Button variant="secondary" onClick={() => handleEdit(recipe)}>Editar</Button>
-                    <Button variant="danger" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
+            <ScrollArea className="h-[60vh] pr-4">
+              <h3 className="font-semibold mt-4 mb-2">Receta:</h3>
+              {selectedProduct?.recipes.map((recipe) => {
+                const material = materials.find(m => m.id === recipe.material_id);
+                return (
+                  <div key={recipe.id} className="mb-4 pb-4 border-b last:border-b-0">
+                    <h4 className="font-medium">{recipe.product?.name}</h4>
+                    <p><strong>Ingrediente:</strong> {material ? material.name : ''}</p>
+                    <p><strong>Cantidad:</strong> {recipe.quantity_per_product}</p>
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <Button variant="secondary" onClick={() => handleEdit(recipe)}>Editar</Button>
+                      <Button variant="destructive" onClick={() => handleDelete(recipe.id)}>Eliminar</Button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </ScrollArea>
             <p className="font-bold mt-4">Costo de producción total: ${selectedProduct?.totalProductionCost.toFixed(2)}</p>
           </DialogDescription>
         </DialogContent>

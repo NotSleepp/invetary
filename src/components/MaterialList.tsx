@@ -1,55 +1,62 @@
 'use client'
 
 import React from 'react'
-import { Material } from '@/types'
+import { Material, Supplier } from '@/types'
 import { Button } from './ui/Button'
 import { useToast } from '@/contexts/ToastContext'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { Card } from './ui/Card'
 
 interface MaterialListProps {
   materials: Material[]
+  suppliers: Supplier[]
   onEdit: (material: Material) => void
   onDelete: (materialId: string) => void
 }
 
-export const MaterialList: React.FC<MaterialListProps> = ({ materials, onEdit, onDelete }) => {
+export const MaterialList: React.FC<MaterialListProps> = ({ materials, suppliers, onEdit, onDelete }) => {
   const { showToast } = useToast()
 
   const handleDelete = async (materialId: string) => {
-    if (window.confirm('Are you sure you want to delete this material?')) {
-      try {
-        await onDelete(materialId)
-        showToast('Material deleted successfully', 'success')
-      } catch (error) {
-        showToast('Error deleting material', 'error')
-      }
+    try {
+      await onDelete(materialId)
+      showToast('Material eliminado con éxito', 'success')
+    } catch (error) {
+      showToast('Error al eliminar el material', 'error')
     }
   }
 
+  const getSupplierName = (supplierId: string) => {
+    const supplier = suppliers.find(s => s.id === supplierId)
+    return supplier ? supplier.name : 'Proveedor desconocido'
+  }
+
   return (
-    <table className="min-w-full bg-white">
-      <thead>
-        <tr>
-          <th className="py-2 px-4 border-b">Nombre</th>
-          <th className="py-2 px-4 border-b">Stock</th>
-          <th className="py-2 px-4 border-b">Costo por unidad</th>
-          <th className="py-2 px-4 border-b">Proveedor</th>
-          <th className="py-2 px-4 border-b"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {materials.map(material => (
-          <tr key={material.id}>
-            <td className="py-2 px-4 border-b">{material.name}</td>
-            <td className="py-2 px-4 border-b">{material.stock_quantity}</td>
-            <td className="py-2 px-4 border-b">${material.cost_per_unit.toFixed(2)}</td>
-            <td className="py-2 px-4 border-b">{material.supplier_id}</td>
-            <td className="py-2 px-4 border-b">
-              <Button onClick={() => onEdit(material)} variant="secondary">Editar</Button>
-              <Button onClick={() => handleDelete(material.id)} variant="danger">Eliminar</Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {materials.map(material => (
+        <Card key={material.id} className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow duration-300">
+          <h3 className="text-lg font-semibold mb-2">{material.name}</h3>
+          <div className="mb-2">
+            <span className="font-medium">Stock:</span> {material.stock_quantity}
+          </div>
+          <div className="mb-2">
+            <span className="font-medium">Costo por unidad:</span> ${material.cost_per_unit.toFixed(2)}
+          </div>
+          <div className="mb-4">
+            <span className="font-medium">Proveedor:</span> {getSupplierName(material.supplier_id)}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button onClick={() => onEdit(material)} variant="outline" className="flex items-center">
+              <PencilIcon className="h-4 w-4 mr-1" />
+              Editar
+            </Button>
+            <Button onClick={() => handleDelete(material.id)} variant="outline" className="flex items-center">
+              <TrashIcon className="h-4 w-4 mr-1" />
+              Eliminar
+            </Button>
+          </div>
+        </Card>
+      ))}
+    </div>
   )
 }

@@ -17,6 +17,7 @@ interface SalesState {
   deleteSale: (saleId: string) => Promise<void>;
   setPage: (page: number) => void;
   setSearchTerm: (term: string) => void;
+  updateSale: (saleId: string, updatedSale: Partial<Sale>) => Promise<void>;
 }
 
 export const useSalesStore = create<SalesState>((set, get) => ({
@@ -92,4 +93,20 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     set({ searchTerm: term, page: 1 })
     get().fetchSales()
   }, 300),
+
+  updateSale: async (saleId: string, updatedSale: Partial<Sale>) => {
+    set({ isLoading: true, error: null })
+    try {
+      const { error } = await supabase
+        .from('sales')
+        .update(updatedSale)
+        .eq('id', saleId)
+      
+      if (error) throw error
+      
+      await get().fetchSales()
+    } catch (error) {
+      set({ error: 'Error actualizando la venta', isLoading: false })
+    }
+  },
 }))

@@ -47,8 +47,8 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, products, mater
       <thead>
         <tr>
           <th className="py-2 px-4 border-b">Producto</th>
-          <th className="py-2 px-4 border-b">Material</th>
-          <th className="py-2 px-4 border-b">Cantidad por Producto</th>
+          <th className="py-2 px-4 border-b">Ingrediente</th>
+          <th className="py-2 px-4 border-b">Cantidad</th>
           <th className="py-2 px-4 border-b">Costo por Unidad</th>
           <th className="py-2 px-4 border-b">Acciones</th>
         </tr>
@@ -65,7 +65,7 @@ export const RecipeList: React.FC<RecipeListProps> = ({ recipes, products, mater
               <td className="py-2 px-4 border-b">${materialCost.toFixed(2)}</td>
               <td className="py-2 px-4 border-b">
                 <Button onClick={() => onEdit(recipe)} variant="secondary" className="mr-2">Editar</Button>
-                <Button onClick={() => handleDelete(recipe.id)} variant="danger">Eliminar</Button>
+                <Button onClick={() => handleDelete(recipe.id)} variant="destructive">Eliminar</Button>
               </td>
             </tr>
           )

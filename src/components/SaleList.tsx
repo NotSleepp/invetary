@@ -8,13 +8,14 @@ import { useToast } from '@/contexts/ToastContext'
 interface SaleListProps {
   sales: Sale[]
   onDelete: (saleId: string) => void
+  onEdit: (sale: Sale) => void  // Añadida esta línea
   isLoading: boolean
   totalCount: number
   page: number
   onPageChange: (newPage: number) => void
 }
 
-export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete, isLoading, totalCount, page, onPageChange }) => {
+export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete, onEdit, isLoading, totalCount, page, onPageChange }) => {
   const { showToast } = useToast()
 
   const handleDelete = async (saleId: string) => {
@@ -49,7 +50,8 @@ export const SaleList: React.FC<SaleListProps> = ({ sales, onDelete, isLoading, 
             <td className="py-2 px-4 border-b">${sale.total_revenue?.toFixed(2) ?? '0.00'}</td>
             <td className="py-2 px-4 border-b">{new Date(sale.created_at ?? new Date()).toLocaleDateString()}</td>
             <td className="py-2 px-4 border-b">
-              <Button onClick={() => handleDelete(sale.id)} variant="danger">Eliminar</Button>
+              <Button onClick={() => onEdit(sale)} variant="secondary" className="mr-2">Editar</Button>
+              <Button onClick={() => handleDelete(sale.id)} variant="destructive">Eliminar</Button>
             </td>
           </tr>
         ))}

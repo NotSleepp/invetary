@@ -18,17 +18,17 @@ export const useProductStore = create<ProductState>((set, get) => ({
   error: null,
 
   fetchProducts: async () => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null });
     try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('name', { ascending: true })
-        .range(0, 49) // Implementación básica de paginación
       if (error) throw error
-      set({ products: data, isLoading: false })
+      set({ products: data || [] })
     } catch (error) {
-      set({ error: 'Error fetching products', isLoading: false })
+      set({ error: 'Error fetching products' })
+    } finally {
+      set({ isLoading: false })
     }
   },
 
@@ -49,16 +49,30 @@ export const useProductStore = create<ProductState>((set, get) => ({
 
   updateProduct: async (id, data) => {
     try {
-      const { error } = await supabase
-        .from('products')
-        .update(data)
-        .eq('id', id)
-      if (error) throw error
-      set(state => ({
-        products: state.products.map(product => product.id === id ? { ...product, ...data } : product)
-      }))
+      // Excluimos el campo 'id' de los datos a actualizar
+      const { id: _, ...updateData } = data;
+
+      const response = await fetch(`/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el producto');
+      }
+
+      const updatedProduct = await response.json();
+      set((state) => ({
+        products: state.products.map((product) =>
+          product.id === id ? updatedProduct : product
+        ),
+      }));
     } catch (error) {
-      set({ error: 'Error updating product' })
+      console.error('Error al actualizar el producto:', error);
+      throw error;
     }
   },
 

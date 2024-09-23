@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { AuthGuard } from '@/components/AuthGuard'
 import { ProductForm } from '@/components/ProductForm'
-import { ProductList } from '@/components/ProductList'
 import { useToast } from '@/contexts/ToastContext'
 import Spinner from '@/components/ui/Spinner'
 import ErrorMessage from '@/components/ui/ErrorMessage'
@@ -11,13 +10,20 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useProductStore } from '@/stores/productStore'
 import { useCategoryStore } from '@/stores/categoryStore'
 import { Product } from '@/types'
-import { Modal } from '@/components/ui/Modal' // Modal importado
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Card } from '@/components/ui/Card'
+import { PlusIcon, SearchIcon } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ProductList } from '@/components/ProductList'
 
 export default function ProductsPage() {
   const { showToast } = useToast()
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false) // Estado del modal
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const {
     products,
@@ -36,100 +42,119 @@ export default function ProductsPage() {
     fetchCategories,
   } = useCategoryStore()
 
-  // Efecto para cargar productos
   useEffect(() => {
-    if (products.length === 0) {
-      fetchProducts()
-    }
-  }, [fetchProducts, products.length])
-
-  // Efecto para cargar categorías
-  useEffect(() => {
-    if (categories.length === 0) {
-      fetchCategories()
-    }
-  }, [fetchCategories, categories.length])
+    fetchProducts()
+    fetchCategories()
+  }, [fetchProducts, fetchCategories])
 
   const handleSubmit = async (data: Partial<Product>) => {
     try {
       if (editingProduct) {
-        await updateProduct(editingProduct.id, data)
-        showToast('Producto actualizado con éxito', 'success')
+        // Eliminar el campo 'id' de los datos antes de actualizar
+        const { id, ...updateData } = data;
+        await updateProduct(editingProduct.id, updateData);
+        showToast('Producto actualizado con éxito', 'success');
       } else {
-        await addProduct(data)
-        showToast('Producto añadido con éxito', 'success')
+        await addProduct(data);
+        showToast('Producto añadido con éxito', 'success');
       }
-      setEditingProduct(null)
-      setIsModalOpen(false) // Cerrar el modal después de guardar
+      setEditingProduct(null);
+      setIsModalOpen(false);
+      fetchProducts();
     } catch (error) {
-      showToast('Error al guardar el producto', 'error')
+      showToast('Error al guardar el producto', 'error');
     }
-  }
+  };
 
   const handleEdit = (product: Product) => {
-    setEditingProduct(product)
-    setIsModalOpen(true) // Abrir modal para edición
-  }
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
 
   const handleDelete = (productId: string) => {
-    setDeletingProductId(productId)
-  }
+    setDeletingProductId(productId);
+  };
 
   const confirmDelete = async () => {
     if (deletingProductId) {
       try {
-        await deleteProduct(deletingProductId)
-        showToast('Producto eliminado con éxito', 'success')
-        setDeletingProductId(null)
+        await deleteProduct(deletingProductId);
+        showToast('Producto eliminado con éxito', 'success');
+        setDeletingProductId(null);
+        fetchProducts();
       } catch {
-        showToast('Error al eliminar el producto', 'error')
+        showToast('Error al eliminar el producto', 'error');
       }
     }
-  }
+  };
 
   const cancelDelete = () => {
-    setDeletingProductId(null)
+    setDeletingProductId(null);
+  };
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [products, searchTerm])
+
+  if (productsLoading || categoriesLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spinner />
+      </div>
+    )
   }
 
-  // Manejo de carga y errores
-  if (productsLoading || categoriesLoading) return <Spinner />
-  if (productsError || categoriesError)
+  if (productsError || categoriesError) {
     return <ErrorMessage message="Error al cargar los datos. Por favor, intente de nuevo más tarde." />
+  }
 
   return (
     <AuthGuard>
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">Productos</h1>
-        <button
-          className="mb-4 p-2 bg-blue-500 text-white rounded"
-          onClick={() => {
-            setEditingProduct(null) // Para un nuevo producto
-            setIsModalOpen(true) // Abrir el modal
-          }}
-        >
-          Crear Nuevo Producto
-        </button>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <div className="relative w-full md:w-80 mb-4 md:mb-0">
+            <Input
+              type="text"
+              placeholder="Buscar productos..."
+              label="Búsqueda"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-12 pr-4 py-3 rounded-full border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 ease-in-out"
+            />
+            <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-6 w-6" />
+          </div>
+          <Button
+            onClick={() => {
+              setEditingProduct(null)
+              setIsModalOpen(true)
+            }}
+            className="w-full md:w-auto bg-gradient-to-r from-[#1e2837] to-[#101826] hover:from-[#080d14] hover:to-[#1e2837] text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105"
+          >
+            <PlusIcon className="mr-2 h-5 w-5" />
+            Crear Nuevo Producto
+          </Button>
+        </div>
 
         <ProductList
-          products={products} // Ya obtenidos desde el store
+          products={filteredProducts}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
 
-        {/* Modal para crear o editar productos */}
         <Modal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)} // Cerrar el modal
+          onClose={() => setIsModalOpen(false)}
           title={editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
         >
           <ProductForm
-            product={editingProduct || undefined} // Pasar producto si está en edición
-            categories={categories} // Categorías obtenidas del store
-            onSubmit={handleSubmit} // Enviar datos
+            product={editingProduct || undefined}
+            categories={categories}
+            onSubmit={handleSubmit}
           />
         </Modal>
 
-        {/* Confirmación de eliminación */}
         <ConfirmDialog
           isOpen={!!deletingProductId}
           onConfirm={confirmDelete}

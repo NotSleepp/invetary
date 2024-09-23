@@ -8,6 +8,7 @@ interface ProductionState {
   error: string | null
   fetchProductionLogs: () => Promise<void>
   addProductionLog: (data: Partial<ProductionLog>) => Promise<void>
+  updateProductionLog: (id: string, data: Partial<ProductionLog>) => Promise<void>
   deleteProductionLog: (id: string) => Promise<void>
 }
 
@@ -46,6 +47,28 @@ export const useProductionStore = create<ProductionState>((set, get) => ({
         set({ error: error.message })
       } else {
         set({ error: 'Unexpected error while adding the production log' })
+      }
+    }
+  },
+
+  updateProductionLog: async (id, data) => {
+    try {
+      const { error, data: updatedData } = await supabase
+        .from('production_logs')
+        .update(data)
+        .eq('id', id)
+        .select()
+      if (error) throw error
+      set(state => ({
+        productionLogs: state.productionLogs.map(log => 
+          log.id === id ? { ...log, ...updatedData[0] } : log
+        )
+      }))
+    } catch (error) {
+      if (error instanceof Error) {
+        set({ error: error.message })
+      } else {
+        set({ error: 'Error inesperado al actualizar el registro de producción' })
       }
     }
   },

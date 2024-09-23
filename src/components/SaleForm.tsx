@@ -10,10 +10,11 @@ import { supabase } from '@/lib/supabase'
 import { useToast } from '@/contexts/ToastContext'
 
 interface SaleFormProps {
-  onSubmit: (data: Partial<Sale>) => void
+  sale?: Partial<Sale>;
+  onSubmit: (data: Partial<Sale>) => void;
 }
 
-export const SaleForm: React.FC<SaleFormProps> = ({ onSubmit }) => {
+export const SaleForm: React.FC<SaleFormProps> = ({ sale, onSubmit }) => {
   const [products, setProducts] = useState<Product[]>([])
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Partial<Sale>>()
   const { showToast } = useToast()
@@ -35,6 +36,14 @@ export const SaleForm: React.FC<SaleFormProps> = ({ onSubmit }) => {
       }
     }
   }, [selectedProductId, quantitySold, products, setValue])
+
+  useEffect(() => {
+    if (sale) {
+      Object.entries(sale).forEach(([key, value]) => {
+        setValue(key as keyof Sale, value);
+      });
+    }
+  }, [sale, setValue]);
 
   const fetchProducts = async () => {
     const { data, error } = await supabase.from('products').select('*')
